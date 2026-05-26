@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dthboost.local/schemas/helper-contract.schema.json",
+  "title": "DTHBoost Helper Contract",
+  "type": "object",
+  "required": ["status", "message", "receipts"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "scanning",
+        "snapshot-ready",
+        "benchmark-ready",
+        "boost-armed",
+        "boost-active",
+        "rollback-ready",
+        "reverting",
+        "restored",
+        "error"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "receipts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/receipt"
+      }
+    },
+    "scan": {
+      "$ref": "#/$defs/scan"
+    },
+    "benchmark": {
+      "$ref": "#/$defs/benchmark"
+    },
+    "network": {
+      "$ref": "#/$defs/network"
+    },
+    "memory": {
+      "$ref": "#/$defs/memory"
+    },
+    "frametime": {
+      "$ref": "#/$defs/frametime"
+    },
+    "inputPath": {
+      "$ref": "#/$defs/inputPath"
+    },
+    "bottleneck": {
+      "$ref": "#/$defs/bottleneck"
+    },
+    "gameLab": {
+      "$ref": "#/$defs/gameLab"
+    }
+  },
+  "$defs": {
+    "receipt": {
+      "type": "object",
+      "required": [
+        "id",
+        "command",
+        "title",
+        "risk",
+        "scope",
+        "target",
+        "before",
+        "after",
+        "rollback",
+        "requiresAdmin",
+        "requiresReboot",
+        "timestamp"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string",
+          "enum": [
+            "scan",
+            "snapshot",
+            "benchmark",
+            "apply_safe_session_boost",
+            "rollback_session",
+            "network_truth",
+            "memory_stutter_test",
+            "frametime_doctor",
+            "input_path_audit",
+            "bottleneck_classifier",
+            "game_smoothness_lab"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["Safe", "Measured", "Advanced", "Lab", "Blocked"]
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["HKCU", "HKLM", "Process", "Power", "Metrics", "Network"]
+        },
+        "target": {
+          "type": "string"
+        },
+        "before": {
+          "type": "string"
+        },
+        "after": {
+          "type": "string"
+        },
+        "rollback": {
+          "type": "string"
+        },
+        "requiresAdmin": {
+          "type": "boolean"
+        },
+        "requiresReboot": {
+          "type": "boolean"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "properties": {
+        "gpuVendor": { "type": "string" },
+        "refreshRate": { "type": "string" },
+        "activePowerPlan": { "type": "string" },
+        "gameMode": { "type": "string" },
+        "overlays": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "required": [
+        "avgFps",
+        "onePercentLow",
+        "pointOnePercentLow",
+        "p95FrameTime",
+        "p99FrameTime",
+        "stutterCount",
+        "droppedFrames",
+        "confidence",
+        "hardVerdict"
+      ],
+      "properties": {
+        "avgFps": { "type": "number" },
+        "onePercentLow": { "type": "number" },
+        "pointOnePercentLow": { "type": "number" },
+        "p95FrameTime": { "type": "number" },
+        "p99FrameTime": { "type": "number" },
+        "stutterCount": { "type": "number" },
+        "droppedFrames": { "type": "number" },
+        "cpuWait": { "type": "string" },
+        "gpuWait": { "type": "string" },
+        "presentMode": { "type": "string" },
+        "allowsTearing": { "type": "boolean" },
+        "msBetweenPresents": { "type": "number" },
+        "msCPUWait": { "type": "number" },
+        "msGPUBusy": { "type": "number" },
+        "displayLatency": { "type": ["number", "null"] },
+        "clickToPhotonLatency": { "type": ["number", "null"] },
+        "confidence": { "type": "string" },
+        "verdict": { "type": "string" },
+        "hardVerdict": { "type": "string", "enum": ["Keep", "Rollback", "Retest"] }
+      }
+    },
+    "network": {
+      "type": "object",
+      "properties": {
+        "idlePing": { "type": "number" },
+        "loadedPing": { "type": "number" },
+        "jitter": { "type": "number" },
+        "packetLoss": { "type": "number" },
+        "bufferbloatGrade": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "recommendation": { "type": "string" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "totalRamGb": { "type": "number" },
+        "freeRamGb": { "type": "number" },
+        "commitPercent": { "type": "number" },
+        "hardFaultsPerSecond": { "type": "number" },
+        "standbyPressure": { "type": "string" },
+        "verdict": { "type": "string" }
+      }
+    },
+    "frametime": {
+      "type": "object",
+      "properties": {
+        "framePacingScore": { "type": "number" },
+        "p95FrameTime": { "type": "number" },
+        "p99FrameTime": { "type": "number" },
+        "pointOneLow": { "type": "number" },
+        "tearRisk": { "type": "string" },
+        "capAdvice": { "type": "string" },
+        "diagnosis": { "type": "string" }
+      }
+    },
+    "inputPath": {
+      "type": "object",
+      "properties": {
+        "pollingRate": { "type": "string" },
+        "rawInputAdvice": { "type": "string" },
+        "overlayRisk": { "type": "string" },
+        "gameDvrState": { "type": "string" },
+        "usbPowerSaving": { "type": "string" },
+        "recommendation": { "type": "string" }
+      }
+    },
+    "bottleneck": {
+      "type": "object",
+      "properties": {
+        "primary": { "type": "string" },
+        "confidence": { "type": "number" },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "nextTest": { "type": "string" }
+      }
+    },
+    "gameLab": {
+      "type": "object",
+      "properties": {
+        "labName": { "type": "string" },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "type": "string" },
+              "recommendation": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

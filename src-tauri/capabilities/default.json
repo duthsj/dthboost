@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "enables the default permissions",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:window:allow-set-size",
+    "core:window:allow-set-title"
+  ]
+}

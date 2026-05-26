@@ -1,0 +1,1 @@
+console.log('test'); const fs = require('fs'); const p = 'C:/Users/Administrator/Documents/Codex/2026-05-26/quiero-que-investiges-estudies-para-crear/DTHBoost/src/test.txt'; fs.writeFileSync(p, 'hello world'); console.log('wrote test');
