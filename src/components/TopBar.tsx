@@ -10,15 +10,17 @@ interface TopBarProps {
   activeGame: GameKey
   busyCommand: EngineCommand | null
   isAdmin: boolean
+  vbsEnabled: boolean
   onSelectGame: (key: GameKey) => void
   onToggleLanguage: () => void
   onOptimize: () => void
   onRestartAsAdmin: () => void
+  onDisableVbs: () => void
 }
 
 const gameColors: Record<string, string> = { Valorant: '#fa4454', CS2: '#de9b35', Fortnite: '#9d4de0' }
 
-export default function TopBar({ t: _t, language, activeGame, busyCommand, isAdmin, onSelectGame, onToggleLanguage, onOptimize, onRestartAsAdmin }: TopBarProps) {
+export default function TopBar({ t: _t, language, activeGame, busyCommand, isAdmin, vbsEnabled, onSelectGame, onToggleLanguage, onOptimize, onRestartAsAdmin, onDisableVbs }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="game-tabs" role="tablist" aria-label="Game">
@@ -55,6 +57,17 @@ export default function TopBar({ t: _t, language, activeGame, busyCommand, isAdm
           <span style={{ fontSize: 11, padding: '6px 12px', background: '#78d08f22', border: '1px solid #78d08f', color: '#78d08f', borderRadius: 6, fontWeight: 600 }}>
             ADMIN
           </span>
+        )}
+        {vbsEnabled && isAdmin && (
+          <button
+            className="action-btn"
+            onClick={onDisableVbs}
+            type="button"
+            title="VBS/Memory Integrity is ON — disabling can gain +5-10% FPS. Requires reboot."
+            style={{ fontSize: 11, padding: '6px 12px', background: '#ffaa0022', border: '1px solid #ffaa00', color: '#ffaa00', borderRadius: 6, fontWeight: 600 }}
+          >
+            VBS ON — Click to Disable (+5-10% FPS)
+          </button>
         )}
         <button className="language-toggle" onClick={onToggleLanguage} type="button">
           {language.toUpperCase()}

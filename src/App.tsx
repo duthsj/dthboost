@@ -74,6 +74,7 @@ function AppInner() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [autoBoost, setAutoBoost] = usePersist('autoBoost', false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [vbsEnabled, setVbsEnabled] = useState(false)
 
   const { toast } = useToast()
   const t = useDictionary(language)
@@ -222,11 +223,14 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Check admin status on mount and on window focus (after restart as admin)
+  // Check admin + VBS status on mount and on window focus
   useEffect(() => {
     const check = () => {
       runEngineCommand("check_admin", activeGame).then(result => {
         setIsAdmin(result.status === "idle")
+      }).catch(() => {})
+      runEngineCommand("check_vbs", activeGame).then(result => {
+        setVbsEnabled(result.status === "error")
       }).catch(() => {})
     }
     check()
@@ -289,7 +293,7 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
       <BoostProgress active={busyCommand === 'apply_safe_session_boost' || busyCommand === 'auto_boost_if_game'} />
       <Sidebar t={t} language={language} />
       <main className="workspace">
-        <TopBar t={t} language={language} activeGame={activeGame} onSelectGame={handleSelectGame} onToggleLanguage={handleToggleLanguage} onOptimize={handleOptimize} busyCommand={busyCommand} isAdmin={isAdmin} onRestartAsAdmin={() => runCommand('restart_as_admin')} />
+        <TopBar t={t} language={language} activeGame={activeGame} onSelectGame={handleSelectGame} onToggleLanguage={handleToggleLanguage} onOptimize={handleOptimize} busyCommand={busyCommand} isAdmin={isAdmin} vbsEnabled={vbsEnabled} onDisableVbs={() => runCommand('disable_vbs')} onRestartAsAdmin={() => runCommand('restart_as_admin')} />
         <StatusBar
           language={language}
           scanDone={!!scanResult}

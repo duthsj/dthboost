@@ -269,6 +269,16 @@ fn run_engine_command(app: tauri::AppHandle, request: EngineRequest) -> Result<E
     },
     "thermal_check" => Ok(thermal_check()),
     "dpc_latency" => Ok(check_dpc_latency()),
+    "check_vbs" => Ok(check_vbs_status()),
+    "disable_vbs" => Ok(disable_vbs()),
+    "disable_sysmain" => Ok(disable_sysmain_service()),
+    "network_throttling" => Ok(set_network_throttling()),
+    "power_throttling_off" => Ok(set_power_throttling_off()),
+    "games_mmcss_profile" => Ok(set_games_mmcss_profile()),
+    "set_game_priority" => Ok(set_game_high_priority(&request.game)),
+    "optimize_game_config" => Ok(optimize_game_config(&request.game)),
+    "backup_game_config" => Ok(backup_game_configs(&request.game)),
+    "restore_game_config" => Ok(restore_game_configs(&request.game)),
     other => Err(format!("Unsupported command: {other}")),
   }
 }
@@ -478,13 +488,26 @@ fn apply_safe_session_boost_sync(app: &tauri::AppHandle, game: &str) -> Result<E
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "Get-NetAdapter | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "$c=@'\n[DllImport(\"ntdll.dll\")] public static extern int NtSetTimerResolution(int DesiredResolution, bool SetResolution, out int CurrentResolution);\n'@; Add-Type -MemberDefinition $c -Name W32 -Namespace T -ErrorAction SilentlyContinue; [T.W32]::NtSetTimerResolution(5000,$true,[ref]0)"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "$adapters = Get-NetAdapter | Where-Object { $_.Name -match 'Ethernet|Wi-Fi' }; foreach ($a in $adapters) { Set-NetAdapterAdvancedProperty -Name $a.Name -DisplayName 'Interrupt Moderation' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
+      // ═══ New 2025-2026 Optimizations ═══
+      let _ = cmd("sc").args(["stop", "SysMain"]).output();
+      let _ = cmd("sc").args(["config", "SysMain", "start=disabled"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "/v", "NetworkThrottlingIndex", "/t", "REG_DWORD", "/d", "ffffffff", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", "/v", "PowerThrottlingOff", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "GPU Priority", "/t", "REG_DWORD", "/d", "8", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "Scheduling Category", "/t", "REG_SZ", "/d", "High", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "SFIO Priority", "/t", "REG_SZ", "/d", "High", "/f"]).output();
+      let _ = cmd("wmic").args(["process", "where", &format!("name='{proc}'"), "CALL", "setpriority", "128"]).output();
     }));
   });
   let _ = app.emit("boost-progress", serde_json::json!({ "pct": 100, "phase": "Done!" }));
 
+  // Optimize game config files (backup first, then write optimized)
+  let _ = backup_game_configs(game);
+  let _ = optimize_game_config(game);
+
   Ok(EngineResult {
     status: "boost-active".into(),
-    message: "Session Boost active — 20 tweaks applied".into(),
+    message: "Session Boost active — 26 tweaks applied".into(),
     receipts: vec![
       receipt("apply_safe_session_boost", "Game Mode", "Safe", "HKCU", "GameBar\\AutoGameModeEnabled", &gm_before, &gm_after, "Restore via snapshot", false, false),
       receipt("apply_safe_session_boost", "Power plan", "Safe", "Power", "High perf scheme", &previous_plan, "High performance", "powercfg /setactive <guid>", false, false),
@@ -506,6 +529,13 @@ fn apply_safe_session_boost_sync(app: &tauri::AppHandle, game: &str) -> Result<E
       receipt("apply_safe_session_boost", "Defender exclusion", "Measured", "System", "Add-MpPreference", "Scanned", &format!("Excluded: {}", game_path_str.chars().take(40).collect::<String>()), "Remove-MpPreference", true, false),
       receipt("apply_safe_session_boost", "Spectre/Meltdown OFF ⚡", "Advanced", "HKLM", "Memory Management", "Patched", "Unpatched (+CPU perf)", "Restore DWORD (reboot)", true, true),
       receipt("apply_safe_session_boost", "MSI Mode + Interrupt OFF", "Advanced", "HKLM+NetAdapter", "PCI+Network", "Default", "MSI + No moderation", "Restore registry + adapter", true, true),
+      // ═══ New 2025-2026 additions ═══
+      receipt("apply_safe_session_boost", "SysMain disabled", "Safe", "Service", "SysMain", "Running", "Disabled", "sc config SysMain start=auto && sc start SysMain", false, false),
+      receipt("apply_safe_session_boost", "NetworkThrottlingIndex OFF", "Safe", "HKLM", "SystemProfile", "Default", "ffffffff", "Set to 0000000a (default)", false, false),
+      receipt("apply_safe_session_boost", "PowerThrottling OFF", "Safe", "HKLM", "Power\\PowerThrottling", "Default", "1 (disabled)", "Set to 0 (default)", false, false),
+      receipt("apply_safe_session_boost", "Games GPU Priority 8", "Safe", "HKLM", "MMCSS\\Games", "Default", "GPU=8 Schedule=High SFIO=High", "Delete keys", false, false),
+      receipt("apply_safe_session_boost", "Game process HIGH priority", "Safe", "Process", &process, "Normal (8)", "High (13)", "Reverts on game restart", false, false),
+      receipt("apply_safe_session_boost", "Game config optimized", "Safe", "Game", "Config files", "Default", "Optimized", "Restore from DTHBoost backup", false, false),
     ],
     scan: None, benchmark: None, network: None, memory: None, frametime: None, input_path: None, bottleneck: None, game_lab: None,
   })
@@ -553,6 +583,17 @@ fn rollback_session() -> Result<EngineResult, String> {
 
   // Restore TCP NoDelay
   let _ = cmd("reg").args(["delete", "HKLM\\SOFTWARE\\Microsoft\\MSMQ\\Parameters", "/v", "TCPNoDelay", "/f"]).output();
+
+  // Restore new 2025-2026 tweaks
+  let _ = cmd("sc").args(["config", "SysMain", "start=auto"]).output();
+  let _ = cmd("sc").args(["start", "SysMain"]).output();
+  let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "/v", "NetworkThrottlingIndex", "/t", "REG_DWORD", "/d", "a", "/f"]).output();
+  let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", "/v", "PowerThrottlingOff", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
+  let _ = cmd("reg").args(["delete", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "Scheduling Category", "/f"]).output();
+  let _ = cmd("reg").args(["delete", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "SFIO Priority", "/f"]).output();
+
+  // Restore game config from backup
+  let _ = restore_game_configs_internal();
 
   // Revert to Balanced power plan (restores Core Parking, PCIe, USB settings)
   let _ = cmd("powercfg").args(["/setactive", "381b4222-f694-41f0-9685-ff5bb260df2e"]).output();
@@ -1749,6 +1790,470 @@ fn timestamp() -> String {
     .duration_since(UNIX_EPOCH)
     .map(|duration| duration.as_millis().to_string())
     .unwrap_or_else(|_| "0".into())
+}
+
+// ── VBS / Memory Integrity ──
+fn check_vbs_status() -> EngineResult {
+  let hv = command_output("bcdedit", &["/enum"]).unwrap_or_default();
+  let hypervisor_on = hv.lines().any(|l| l.contains("hypervisorlaunchtype") && l.contains("On"));
+  let memory_integrity = query_reg_value(
+    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity",
+    "Enabled"
+  ).unwrap_or_else(|| "0".into());
+  let vbs_enabled = hypervisor_on || memory_integrity.trim() == "1";
+
+  EngineResult {
+    status: if vbs_enabled { "error" } else { "idle" }.into(),
+    message: if vbs_enabled {
+      "VBS/Memory Integrity is ON — disabling can gain +5-10% FPS. Requires reboot.".into()
+    } else {
+      "VBS/Memory Integrity is OFF — optimal for gaming.".into()
+    },
+    receipts: vec![receipt("check_vbs", "VBS status", "Safe", "System", "Hypervisor", if vbs_enabled {"Enabled"} else {"Disabled"}, if vbs_enabled {"Enabled"} else {"Disabled"}, "No change", false, !vbs_enabled)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+fn disable_vbs() -> EngineResult {
+  let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard", "/v", "EnableVirtualizationBasedSecurity", "/t", "REG_DWORD", "/d", "0", "/f"]).status();
+  let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity", "/v", "Enabled", "/t", "REG_DWORD", "/d", "0", "/f"]).status();
+  let _ = cmd("bcdedit").args(["/set", "hypervisorlaunchtype", "off"]).status();
+  EngineResult {
+    status: "boost-active".into(),
+    message: "VBS disabled. REBOOT REQUIRED to apply. After reboot, +5-10% FPS gain expected.".into(),
+    receipts: vec![receipt("disable_vbs", "VBS disabled", "Risky", "System", "Hypervisor + DeviceGuard", "Enabled", "Disabled", "Re-enable: bcdedit /set hypervisorlaunchtype auto + reg keys back to 1", true, true)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+// ── SysMain / Superfetch ──
+fn disable_sysmain_service() -> EngineResult {
+  let before = command_output("sc", &["query", "SysMain"]).unwrap_or_else(|| "unknown".into());
+  let was_running = before.contains("RUNNING");
+  let _ = cmd("sc").args(["stop", "SysMain"]).status();
+  let _ = cmd("sc").args(["config", "SysMain", "start=disabled"]).status();
+  EngineResult {
+    status: "boost-active".into(),
+    message: "SysMain (Superfetch) disabled — frees RAM and reduces background I/O.".into(),
+    receipts: vec![receipt("disable_sysmain", "SysMain disabled", "Safe", "Service", "SysMain", if was_running {"Running"} else {"Stopped"}, "Disabled", "sc config SysMain start=auto && sc start SysMain", false, false)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+// ── Network Throttling ──
+fn set_network_throttling() -> EngineResult {
+  let (before, after) = apply_reg_dword(
+    "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile",
+    "NetworkThrottlingIndex",
+    "ffffffff",
+  );
+  EngineResult {
+    status: "boost-active".into(),
+    message: "Network throttling disabled — reduces online latency and improves hit registration.".into(),
+    receipts: vec![receipt("network_throttling", "Network throttling", "Safe", "HKLM", "SystemProfile\\NetworkThrottlingIndex", &before, &after, "Set back to 0000000a (default)", false, false)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+// ── Power Throttling ──
+fn set_power_throttling_off() -> EngineResult {
+  let key = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling";
+  let (before, after) = apply_reg_dword(key, "PowerThrottlingOff", "1");
+  EngineResult {
+    status: "boost-active".into(),
+    message: "CPU power throttling disabled — eliminates micro-stutter during gaming.".into(),
+    receipts: vec![receipt("power_throttling_off", "Power throttling", "Safe", "HKLM", "PowerThrottling\\PowerThrottlingOff", &before, &after, "Set back to 0 (default)", false, false)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+// ── MMCSS Games Profile (extended) ──
+fn set_games_mmcss_profile() -> EngineResult {
+  let base = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games";
+  let _ = cmd("reg").args(["add", base, "/v", "GPU Priority", "/t", "REG_DWORD", "/d", "8", "/f"]).status();
+  let _ = cmd("reg").args(["add", base, "/v", "Priority", "/t", "REG_DWORD", "/d", "6", "/f"]).status();
+  let _ = cmd("reg").args(["add", base, "/v", "Scheduling Category", "/t", "REG_SZ", "/d", "High", "/f"]).status();
+  let _ = cmd("reg").args(["add", base, "/v", "SFIO Priority", "/t", "REG_SZ", "/d", "High", "/f"]).status();
+  let _ = cmd("reg").args(["add", base, "/v", "Background Only", "/t", "REG_SZ", "/d", "False", "/f"]).status();
+  let gpu_p = query_reg_value(base, "GPU Priority").unwrap_or_else(|| "?".into());
+  EngineResult {
+    status: "boost-active".into(),
+    message: format!("MMCSS Games profile extended — GPU Priority {}, CPU Priority 6, Scheduling High.", gpu_p.trim()),
+    receipts: vec![receipt("games_mmcss_profile", "MMCSS Games profile", "Safe", "HKLM", base, "Default/Partial", "GPU=8 CPU=6 Sched=High SFIO=High", "Delete keys to restore defaults", false, false)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+// ── Game Process HIGH Priority ──
+fn set_game_high_priority(game: &str) -> EngineResult {
+  let (process, _) = game_process_and_path(game);
+  let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
+  let running = tasks.to_lowercase().contains(&process.to_lowercase());
+  if !running {
+    return EngineResult {
+      status: "idle".into(),
+      message: format!("{process} is not running — cannot set priority."),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    };
+  }
+  let _ = cmd("wmic").args(["process", "where", &format!("name='{process}'"), "CALL", "setpriority", "128"]).status();
+  EngineResult {
+    status: "boost-active".into(),
+    message: format!("{process} priority set to HIGH — more CPU resources for the game."),
+    receipts: vec![receipt("set_game_priority", "Game process priority", "Safe", "Process", process, "Normal (8)", "High (13)", "Process reverts to Normal on restart", false, false)],
+    scan: None, benchmark: None, network: None, memory: None,
+    frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+// ── Game Config File Optimization ──
+fn optimize_game_config(game: &str) -> EngineResult {
+  match game {
+    "CS2" => optimize_cs2_config(),
+    "Valorant" => optimize_valorant_config(),
+    "Fortnite" => optimize_fortnite_config(),
+    _ => EngineResult {
+      status: "idle".into(),
+      message: format!("No config optimization available for {game}."),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
+  }
+}
+
+fn cs2_cfg_dir() -> Option<PathBuf> {
+  let steam_dirs = [
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\cfg",
+  ];
+  // Also check common alternate install paths
+  for d in &steam_dirs {
+    let p = PathBuf::from(d);
+    if p.exists() { return Some(p); }
+  }
+  // Try to find via common Steam library paths
+  let home = env::var("USERPROFILE").unwrap_or_default();
+  let alt = PathBuf::from(&home).join("Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\cfg");
+  if alt.exists() { return Some(alt); }
+  None
+}
+
+fn optimize_cs2_config() -> EngineResult {
+  let cfg = r#"// DTHBoost Optimized Autoexec — 2025 Competitive
+// Backup saved in %LOCALAPPDATA%\DTHBoost\game_configs\
+
+// === NETWORK ===
+rate "786432"
+cl_updaterate "128"
+cl_cmdrate "128"
+cl_interp "0"
+cl_interp_ratio "1"
+mm_dedicated_search_maxping "30"
+
+// === FPS & PERFORMANCE ===
+fps_max "0"
+fps_max_tools "0"
+fps_max_ui "0"
+mat_queue_mode "-1"
+cl_ragdoll_physics_enable "0"
+r_dynamic "0"
+
+// === INPUT LAG ===
+m_rawinput "1"
+cl_predict_body_shot_fx "0"
+cl_predict_head_shot_fx "0"
+cl_predict_kill_ragdolls "0"
+
+// === VIEWMODEL ===
+viewmodel_fov "68"
+viewmodel_offset_x "2.5"
+viewmodel_offset_y "2.0"
+viewmodel_offset_z "-1.0"
+cl_bobamt_lat "0.1"
+cl_bobamt_vert "0.1"
+
+// === CROSSHAIR (static, small, cyan) ===
+cl_crosshairstyle "4"
+cl_crosshairsize "2"
+cl_crosshairgap "-1"
+cl_crosshairthickness "0.5"
+cl_crosshairdot "0"
+cl_crosshaircolor "4"
+cl_crosshairalpha "255"
+cl_crosshair_drawoutline "1"
+cl_crosshair_recoil "0"
+
+// === AUDIO CLEANUP ===
+snd_deathcamera_volume "0"
+snd_menumusic_volume "0"
+snd_mapobjective_volume "0"
+snd_roundend_volume "0"
+snd_roundstart_volume "0"
+
+// === SAVE ===
+host_writeconfig
+"#;
+
+  match cs2_cfg_dir() {
+    Some(dir) => {
+      let _ = fs::create_dir_all(&dir);
+      let path = dir.join("autoexec.cfg");
+      match fs::write(&path, cfg) {
+        Ok(_) => EngineResult {
+          status: "boost-active".into(),
+          message: format!("CS2 autoexec.cfg optimized at {}", path.display()),
+          receipts: vec![receipt("optimize_game_config", "CS2 autoexec.cfg", "Safe", "Game", "autoexec.cfg", "Default/None", "Optimized (rate, interp, fps, input lag)", "Delete autoexec.cfg or restore from backup", false, false)],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+        Err(e) => EngineResult {
+          status: "error".into(),
+          message: format!("Failed to write CS2 config: {e}"),
+          receipts: vec![],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+      }
+    }
+    None => EngineResult {
+      status: "error".into(),
+      message: "CS2 cfg folder not found. Is CS2 installed via Steam?".into(),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
+  }
+}
+
+fn valorant_config_dir() -> Option<PathBuf> {
+  let home = env::var("LOCALAPPDATA").unwrap_or_default();
+  let p = PathBuf::from(&home).join("VALORANT\\Saved\\Config\\Windows");
+  if p.exists() { Some(p) } else { None }
+}
+
+fn optimize_valorant_config() -> EngineResult {
+  match valorant_config_dir() {
+    Some(dir) => {
+      let path = dir.join("GameUserSettings.ini");
+      let ini = r#"[ScalabilityGroups]
+sg.ResolutionQuality=100.000000
+sg.ViewDistanceQuality=2
+sg.AntiAliasingQuality=1
+sg.ShadowQuality=1
+sg.PostProcessQuality=1
+sg.TextureQuality=2
+sg.EffectsQuality=1
+sg.FoliageQuality=1
+sg.ShadingQuality=1
+sg.LightingQuality=1
+
+[GameSettings]
+bUseVSync=False
+bUseDynamicResolution=False
+FrameRateLimit=0.000000
+bAllowMultiThreadedRendering=True
+bUseTextureStreaming=True
+bUseAsyncCompute=True
+bUseAsyncShaderCompilation=True
+bPrecompileShaders=True
+"#;
+      match fs::write(&path, ini) {
+        Ok(_) => EngineResult {
+          status: "boost-active".into(),
+          message: format!("Valorant GameUserSettings.ini optimized at {}", path.display()),
+          receipts: vec![receipt("optimize_game_config", "Valorant settings", "Safe", "Game", "GameUserSettings.ini", "Default", "Optimized (AA low, shadows low, VSync off, max FPS, async compute on)", "Restore from backup", false, false)],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+        Err(e) => EngineResult {
+          status: "error".into(),
+          message: format!("Failed to write Valorant config: {e}"),
+          receipts: vec![],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+      }
+    }
+    None => EngineResult {
+      status: "error".into(),
+      message: "Valorant config folder not found. Run Valorant at least once first.".into(),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
+  }
+}
+
+fn fortnite_config_dir() -> Option<PathBuf> {
+  let home = env::var("LOCALAPPDATA").unwrap_or_default();
+  let p = PathBuf::from(&home).join("FortniteGame\\Saved\\Config\\WindowsClient");
+  if p.exists() { Some(p) } else { None }
+}
+
+fn optimize_fortnite_config() -> EngineResult {
+  match fortnite_config_dir() {
+    Some(dir) => {
+      let path = dir.join("GameUserSettings.ini");
+      let ini = r#"[ScalabilityGroups]
+sg.ResolutionQuality=100
+sg.ViewDistanceQuality=2
+sg.AntiAliasingQuality=1
+sg.ShadowQuality=1
+sg.PostProcessQuality=1
+sg.TextureQuality=2
+sg.EffectsQuality=1
+sg.FoliageQuality=1
+sg.ShadingQuality=1
+
+[GameSettings]
+bUseVSync=False
+bUseDynamicResolution=False
+FrameRateLimit=0.000000
+bDisableMouseAcceleration=True
+"#;
+      match fs::write(&path, ini) {
+        Ok(_) => EngineResult {
+          status: "boost-active".into(),
+          message: format!("Fortnite GameUserSettings.ini optimized at {}", path.display()),
+          receipts: vec![receipt("optimize_game_config", "Fortnite settings", "Safe", "Game", "GameUserSettings.ini", "Default", "Optimized (low shadows, VSync off, uncapped FPS, raw input)", "Restore from backup", false, false)],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+        Err(e) => EngineResult {
+          status: "error".into(),
+          message: format!("Failed to write Fortnite config: {e}"),
+          receipts: vec![],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+      }
+    }
+    None => EngineResult {
+      status: "error".into(),
+      message: "Fortnite config folder not found. Run Fortnite at least once first.".into(),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
+  }
+}
+
+// ── Config Backup & Rollback ──
+fn backup_dir() -> PathBuf {
+  app_data_dir().join("game_configs")
+}
+
+fn backup_game_configs(game: &str) -> EngineResult {
+  let src = match game {
+    "CS2" => cs2_cfg_dir().map(|d| d.join("autoexec.cfg")),
+    "Valorant" => valorant_config_dir().map(|d| d.join("GameUserSettings.ini")),
+    "Fortnite" => fortnite_config_dir().map(|d| d.join("GameUserSettings.ini")),
+    _ => None,
+  };
+  match src {
+    Some(src_path) if src_path.exists() => {
+      let _ = fs::create_dir_all(backup_dir());
+      let dst = backup_dir().join(src_path.file_name().unwrap_or_default());
+      match fs::copy(&src_path, &dst) {
+        Ok(_) => EngineResult {
+          status: "idle".into(),
+          message: format!("{} config backed up to {}", game, dst.display()),
+          receipts: vec![receipt("backup_game_config", &format!("{} config backup", game), "Safe", "Game", &format!("{} config", game), "Original", "Backed up", "Backup stored", false, false)],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+        Err(e) => EngineResult {
+          status: "error".into(),
+          message: format!("Backup failed: {e}"),
+          receipts: vec![],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        },
+      }
+    }
+    _ => EngineResult {
+      status: "idle".into(),
+      message: format!("No existing {game} config to backup."),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
+  }
+}
+
+fn restore_game_configs_internal() {
+  let bd = backup_dir();
+  if !bd.exists() { return; }
+  // Restore CS2
+  if let Some(dir) = cs2_cfg_dir() {
+    let src = bd.join("autoexec.cfg");
+    if src.exists() { let _ = fs::copy(&src, dir.join("autoexec.cfg")); }
+  }
+  // Restore Valorant
+  if let Some(dir) = valorant_config_dir() {
+    let src = bd.join("GameUserSettings.ini");
+    if src.exists() { let _ = fs::copy(&src, dir.join("GameUserSettings.ini")); }
+  }
+  // Restore Fortnite
+  if let Some(dir) = fortnite_config_dir() {
+    let src = bd.join("GameUserSettings.ini");
+    if src.exists() { let _ = fs::copy(&src, dir.join("GameUserSettings.ini")); }
+  }
+}
+
+fn restore_game_configs(game: &str) -> EngineResult {
+  let dst = match game {
+    "CS2" => cs2_cfg_dir().map(|d| d.join("autoexec.cfg")),
+    "Valorant" => valorant_config_dir().map(|d| d.join("GameUserSettings.ini")),
+    "Fortnite" => fortnite_config_dir().map(|d| d.join("GameUserSettings.ini")),
+    _ => None,
+  };
+  match dst {
+    Some(dst_path) => {
+      let src = backup_dir().join(dst_path.file_name().unwrap_or_default());
+      if src.exists() {
+        match fs::copy(&src, &dst_path) {
+          Ok(_) => EngineResult {
+            status: "idle".into(),
+            message: format!("{game} config restored from backup."),
+            receipts: vec![receipt("restore_game_config", &format!("{} config restore", game), "Safe", "Game", "DTHBoost backup", "Optimized", "Original restored", "No rollback needed", false, false)],
+            scan: None, benchmark: None, network: None, memory: None,
+            frametime: None, input_path: None, bottleneck: None, game_lab: None,
+          },
+          Err(e) => EngineResult {
+            status: "error".into(),
+            message: format!("Restore failed: {e}"),
+            receipts: vec![],
+            scan: None, benchmark: None, network: None, memory: None,
+            frametime: None, input_path: None, bottleneck: None, game_lab: None,
+          },
+        }
+      } else {
+        EngineResult {
+          status: "error".into(),
+          message: "No backup found. Run backup_game_config first.".into(),
+          receipts: vec![],
+          scan: None, benchmark: None, network: None, memory: None,
+          frametime: None, input_path: None, bottleneck: None, game_lab: None,
+        }
+      }
+    }
+    None => EngineResult {
+      status: "error".into(),
+      message: format!("Cannot find {game} config folder."),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
+  }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

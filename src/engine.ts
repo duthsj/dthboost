@@ -23,6 +23,16 @@ export type EngineCommand =
   | 'thermal_check'
   | 'dpc_latency'
   | 'auto_boost_if_game'
+  | 'check_vbs'
+  | 'disable_vbs'
+  | 'disable_sysmain'
+  | 'network_throttling'
+  | 'power_throttling_off'
+  | 'games_mmcss_profile'
+  | 'set_game_priority'
+  | 'optimize_game_config'
+  | 'backup_game_config'
+  | 'restore_game_config'
 
 export type EngineStatus =
   | 'idle'
@@ -42,7 +52,7 @@ export type Receipt = {
   command: EngineCommand
   title: string
   risk: RiskLevel
-  scope: 'HKCU' | 'HKLM' | 'Process' | 'Power' | 'Metrics' | 'Network'
+  scope: 'HKCU' | 'HKLM' | 'Process' | 'Power' | 'Metrics' | 'Network' | 'System' | 'Service' | 'Game'
   target: string
   before: string
   after: string
@@ -602,6 +612,86 @@ export async function runEngineCommand(
       status: 'error',
       message: 'Restart as Admin is only available in the desktop app.',
       receipts: [],
+    }
+  }
+
+  if (command === 'check_vbs') {
+    return {
+      status: 'idle',
+      message: 'VBS check (browser mock — VBS status unknown)',
+      receipts: [receipt(command, 'VBS status', 'Safe', 'System', 'Hypervisor', '?', '?', 'No change', false, false)],
+    }
+  }
+
+  if (command === 'disable_vbs') {
+    return {
+      status: 'boost-active',
+      message: 'VBS disabled (browser mock). REBOOT REQUIRED.',
+      receipts: [receipt(command, 'VBS disabled', 'Advanced', 'System', 'Hypervisor+DeviceGuard', 'Enabled', 'Disabled', 'Re-enable via bcdedit', true, true)],
+    }
+  }
+
+  if (command === 'disable_sysmain') {
+    return {
+      status: 'boost-active',
+      message: 'SysMain disabled (browser mock)',
+      receipts: [receipt(command, 'SysMain disabled', 'Safe', 'Service', 'SysMain', 'Running', 'Disabled', 'sc config SysMain start=auto', false, false)],
+    }
+  }
+
+  if (command === 'network_throttling') {
+    return {
+      status: 'boost-active',
+      message: 'Network throttling disabled (browser mock)',
+      receipts: [receipt(command, 'Network throttling', 'Safe', 'HKLM', 'SystemProfile', 'Default', 'ffffffff', 'Set to a (default)', false, false)],
+    }
+  }
+
+  if (command === 'power_throttling_off') {
+    return {
+      status: 'boost-active',
+      message: 'Power throttling disabled (browser mock)',
+      receipts: [receipt(command, 'Power throttling', 'Safe', 'HKLM', 'PowerThrottling', 'Default', '1 (disabled)', 'Set to 0', false, false)],
+    }
+  }
+
+  if (command === 'games_mmcss_profile') {
+    return {
+      status: 'boost-active',
+      message: 'MMCSS Games profile extended (browser mock)',
+      receipts: [receipt(command, 'Games MMCSS profile', 'Safe', 'HKLM', 'MMCSS\\Games', 'Default', 'GPU=8 CPU=6 Sched=High', 'Delete keys', false, false)],
+    }
+  }
+
+  if (command === 'set_game_priority') {
+    return {
+      status: 'boost-active',
+      message: `${gameProcesses[game]} priority set to HIGH (browser mock)`,
+      receipts: [receipt(command, 'Game process priority', 'Safe', 'Process', gameProcesses[game], 'Normal', 'High', 'Reverts on restart', false, false)],
+    }
+  }
+
+  if (command === 'optimize_game_config') {
+    return {
+      status: 'boost-active',
+      message: `${game} config optimized (browser mock)`,
+      receipts: [receipt(command, `${game} config optimized`, 'Safe', 'Game', 'Config files', 'Default', 'Optimized', 'Restore from backup', false, false)],
+    }
+  }
+
+  if (command === 'backup_game_config') {
+    return {
+      status: 'idle',
+      message: `${game} config backed up (browser mock)`,
+      receipts: [receipt(command, `${game} config backup`, 'Safe', 'Game', 'Config files', 'Original', 'Backed up', 'No rollback needed', false, false)],
+    }
+  }
+
+  if (command === 'restore_game_config') {
+    return {
+      status: 'idle',
+      message: `${game} config restored (browser mock)`,
+      receipts: [receipt(command, `${game} config restore`, 'Safe', 'Game', 'Backup', 'Optimized', 'Original', 'No further action', false, false)],
     }
   }
 
