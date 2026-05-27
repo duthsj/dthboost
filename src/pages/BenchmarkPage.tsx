@@ -11,11 +11,13 @@ interface BenchmarkPageProps {
   activeGame: GameKey
   benchmarkResult: BenchmarkResult | null
   busyCommand: EngineCommand | null
+  isAdmin: boolean
   onRunCommand: (cmd: EngineCommand) => void
+  onRestartAsAdmin: () => void
   scanResult?: { gpuVendor?: string } | null
 }
 
-export default function BenchmarkPage({ t, language, activeGame, benchmarkResult, busyCommand, onRunCommand, scanResult }: BenchmarkPageProps) {
+export default function BenchmarkPage({ t, language, activeGame, benchmarkResult, busyCommand, isAdmin, onRunCommand, onRestartAsAdmin, scanResult }: BenchmarkPageProps) {
   const tx = (v: string | number | null | undefined) => translatePhrase(v, language)
   const isDownloading = busyCommand === 'install_presentmon'
   const prediction = predictFPS(scanResult?.gpuVendor ?? 'Unknown', activeGame)
@@ -51,6 +53,25 @@ export default function BenchmarkPage({ t, language, activeGame, benchmarkResult
           Pre-Warm primes your RAM, GPU and CPU for ranked. Install PresentMon to enable real benchmark capture.
         </p>
       </section>
+
+      {!isAdmin && (
+        <div style={{
+          background: '#fa445411', border: '1px solid #fa445444', borderRadius: 8,
+          padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12
+        }}>
+          <span style={{ fontSize: 13, color: '#fa4454', flex: 1 }}>
+            Administrator privileges required for real PresentMon benchmark capture. Without admin, benchmark will show estimated values instead of your real FPS data.
+          </span>
+          <button
+            className="action-btn"
+            onClick={onRestartAsAdmin}
+            type="button"
+            style={{ fontSize: 12, padding: '6px 14px', background: '#fa4454', border: 'none', color: '#fff', borderRadius: 6, fontWeight: 600, whiteSpace: 'nowrap' }}
+          >
+            Run as Admin
+          </button>
+        </div>
+      )}
 
       {/* FPS Prediction */}
       <div className="signal-strip">

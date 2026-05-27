@@ -240,6 +240,13 @@ fn run_engine_command(app: tauri::AppHandle, request: EngineRequest) -> Result<E
     "check_gpu_driver" => Ok(check_gpu_driver()),
     "toggle_autostart" => Ok(toggle_autostart()),
     "check_admin" => Ok(check_admin()),
+    "restart_as_admin" => {
+      let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("dthboost.exe"));
+      let _ = cmd("powershell").args(["-NoProfile", "-Command",
+        &format!("Start-Process -FilePath '{}' -Verb RunAs", exe.display())
+      ]).status();
+      std::process::exit(0);
+    },
     "thermal_check" => Ok(thermal_check()),
     "dpc_latency" => Ok(check_dpc_latency()),
     other => Err(format!("Unsupported command: {other}")),
@@ -559,6 +566,16 @@ fn rollback_session() -> Result<EngineResult, String> {
 fn benchmark(game: &str) -> EngineResult {
   let presentmon = find_presentmon();
   let (process, _) = game_process_and_path(game);
+
+  if !check_admin_bool() {
+    return EngineResult {
+      status: "admin_required".into(),
+      message: "Administrator privileges required for real benchmark. Click 'Restart as Admin' to enable PresentMon frame capture.".into(),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    };
+  }
 
   match presentmon {
     Some(pm_path) => {
@@ -1577,8 +1594,12 @@ fn check_dpc_latency() -> EngineResult {
   }
 }
 
+fn check_admin_bool() -> bool {
+  cmd("net").args(["session"]).output().map(|o| o.status.success()).unwrap_or(false)
+}
+
 fn check_admin() -> EngineResult {
-  let is_admin = cmd("net").args(["session"]).output().map(|o| o.status.success()).unwrap_or(false);
+  let is_admin = check_admin_bool();
   EngineResult {
     status: if is_admin { "idle" } else { "error" }.into(),
     message: if is_admin { "Running with administrator privileges".into() } else { "Not running as admin — 4 of 20 tweaks will be skipped".into() },

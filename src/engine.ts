@@ -19,6 +19,7 @@ export type EngineCommand =
   | 'check_gpu_driver'
   | 'toggle_autostart'
   | 'check_admin'
+  | 'restart_as_admin'
   | 'thermal_check'
   | 'dpc_latency'
   | 'auto_boost_if_game'
@@ -33,6 +34,7 @@ export type EngineStatus =
   | 'rollback-ready'
   | 'reverting'
   | 'restored'
+  | 'admin_required'
   | 'error'
 
 export type Receipt = {
@@ -584,6 +586,22 @@ export async function runEngineCommand(
                   },
                 ],
       },
+    }
+  }
+
+  if (command === 'check_admin') {
+    return {
+      status: 'idle',
+      message: 'Admin check (browser mock — always reports as non-admin)',
+      receipts: [],
+    }
+  }
+
+  if (command === 'restart_as_admin') {
+    return {
+      status: 'error',
+      message: 'Restart as Admin is only available in the desktop app.',
+      receipts: [],
     }
   }
 

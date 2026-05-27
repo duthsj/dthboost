@@ -73,6 +73,7 @@ function AppInner() {
   const [onboardingDone, setOnboardingDone] = usePersist('onboardingDone', false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [autoBoost, setAutoBoost] = usePersist('autoBoost', false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const { toast } = useToast()
   const t = useDictionary(language)
@@ -113,6 +114,9 @@ function AppInner() {
 if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wait for boost-complete event */ }
       if (command === 'rollback_session') { setSessionState('idle'); setBenchmarkResult(null); playRollback(); toast('Restored', 'info') }
       if (command === 'scan') { playScanComplete(); toast('Scan done', 'success') }
+      if (result.status === 'admin_required') {
+        toast('Admin required — click "Run as Admin" to enable real benchmark', 'error')
+      }
       if (command === 'benchmark') playBenchmarkComplete()
       addLog('Completed ' + command)
       return true
@@ -201,6 +205,19 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Check admin status on mount and on window focus (after restart as admin)
+  useEffect(() => {
+    const check = () => {
+      runEngineCommand("check_admin", activeGame).then(result => {
+        setIsAdmin(result.status === "idle")
+      }).catch(() => {})
+    }
+    check()
+    window.addEventListener("focus", check)
+    return () => window.removeEventListener("focus", check)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Watch game process for auto-rollback (only when boosted)
   useEffect(() => {
     if (sessionState !== 'boosted') return
@@ -255,7 +272,7 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
       <BoostProgress active={busyCommand === 'apply_safe_session_boost' || busyCommand === 'auto_boost_if_game'} />
       <Sidebar t={t} language={language} />
       <main className="workspace">
-        <TopBar t={t} language={language} activeGame={activeGame} onSelectGame={handleSelectGame} onToggleLanguage={handleToggleLanguage} onOptimize={handleOptimize} busyCommand={busyCommand} />
+        <TopBar t={t} language={language} activeGame={activeGame} onSelectGame={handleSelectGame} onToggleLanguage={handleToggleLanguage} onOptimize={handleOptimize} busyCommand={busyCommand} isAdmin={isAdmin} onRestartAsAdmin={() => runCommand('restart_as_admin')} />
         <StatusBar
           language={language}
           scanDone={!!scanResult}
@@ -270,7 +287,7 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
         <Routes>
           <Route path="/" element={<DashboardPage t={t} language={language} activeGame={activeGame} readiness={readiness} sessionState={sessionState} receiptsCount={receipts.length} scanResult={scanResult} benchmarkResult={benchmarkResult} onOptimize={handleOptimize} busyCommand={busyCommand} />} />
           <Route path="/optimize" element={<OptimizePage t={t} language={language} activeGame={activeGame} plan={plan} receipts={receipts} busyCommand={busyCommand} benchmarkResult={benchmarkResult} scanResult={scanResult} onTogglePlan={handleTogglePlan} onRunCommand={runCommand} onOptimize={handleOptimize} onSelectReceipt={setSelectedReceipt} />} />
-          <Route path="/history" element={<BenchmarkPage t={t} language={language} activeGame={activeGame} benchmarkResult={benchmarkResult} busyCommand={busyCommand} onRunCommand={runCommand} scanResult={scanResult} />} />
+          <Route path="/history" element={<BenchmarkPage t={t} language={language} activeGame={activeGame} benchmarkResult={benchmarkResult} busyCommand={busyCommand} onRunCommand={runCommand} scanResult={scanResult} isAdmin={isAdmin} onRestartAsAdmin={() => runCommand('restart_as_admin')} />} />
           <Route path="/settings" element={<SettingsPage t={t} language={language} busyCommand={busyCommand} autoBoost={autoBoost} onToggleLanguage={handleToggleLanguage} onToggleAutoBoost={() => setAutoBoost(!autoBoost)} onRunCommand={runCommand} />} />
           <Route path="/games" element={<GamesPage t={t} language={language} activeGame={activeGame} />} />
           <Route path="/network" element={<NetworkPage t={t} language={language} networkResult={networkResult} memoryResult={memoryResult} />} />

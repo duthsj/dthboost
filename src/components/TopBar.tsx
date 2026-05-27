@@ -9,14 +9,16 @@ interface TopBarProps {
   language: Language
   activeGame: GameKey
   busyCommand: EngineCommand | null
+  isAdmin: boolean
   onSelectGame: (key: GameKey) => void
   onToggleLanguage: () => void
   onOptimize: () => void
+  onRestartAsAdmin: () => void
 }
 
 const gameColors: Record<string, string> = { Valorant: '#fa4454', CS2: '#de9b35', Fortnite: '#9d4de0' }
 
-export default function TopBar({ t: _t, language, activeGame, busyCommand, onSelectGame, onToggleLanguage, onOptimize }: TopBarProps) {
+export default function TopBar({ t: _t, language, activeGame, busyCommand, isAdmin, onSelectGame, onToggleLanguage, onOptimize, onRestartAsAdmin }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="game-tabs" role="tablist" aria-label="Game">
@@ -38,6 +40,22 @@ export default function TopBar({ t: _t, language, activeGame, busyCommand, onSel
       </div>
 
       <div className="action-row">
+        {!isAdmin && (
+          <button
+            className="action-btn"
+            onClick={onRestartAsAdmin}
+            type="button"
+            title="Restart with administrator privileges to enable real benchmark capture and all tweaks"
+            style={{ fontSize: 12, padding: '6px 14px', background: '#fa445422', border: '1px solid #fa4454', color: '#fa4454', borderRadius: 6, fontWeight: 600 }}
+          >
+            Run as Admin
+          </button>
+        )}
+        {isAdmin && (
+          <span style={{ fontSize: 11, padding: '6px 12px', background: '#78d08f22', border: '1px solid #78d08f', color: '#78d08f', borderRadius: 6, fontWeight: 600 }}>
+            ADMIN
+          </span>
+        )}
         <button className="language-toggle" onClick={onToggleLanguage} type="button">
           {language.toUpperCase()}
         </button>
