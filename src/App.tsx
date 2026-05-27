@@ -176,7 +176,7 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
     if (!onboardingDone) setShowOnboarding(true)
   }, [onboardingDone])
 
-  // Listen for boost-complete from background thread
+  // Listen for boost-complete from background thread (registered once)
   useEffect(() => {
     let unlisten: (() => void) | undefined
     const isTauri = '__TAURI_INTERNALS__' in window
@@ -198,7 +198,8 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
       }).catch(() => {})
     }
     return () => { unlisten?.() }
-  }, [toast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Watch game process for auto-rollback (only when boosted)
   useEffect(() => {

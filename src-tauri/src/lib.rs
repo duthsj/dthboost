@@ -1159,12 +1159,9 @@ fn close_background_apps() -> EngineResult {
 
 fn watch_game(game: &str) -> EngineResult {
   let (process, _) = game_process_and_path(game);
-  // Fast WMI-based detection (sub-second) falls back to tasklist
-  let wmi_check = command_output("powershell", &[
-    "-NoProfile", "-Command",
-    &format!("(Get-CimInstance Win32_Process -Filter \"Name='{process}'\").Count")
-  ]).unwrap_or_default();
-  let running = wmi_check.trim().parse::<u32>().unwrap_or(0) > 0;
+  // tasklist is a native exe, runs in ~50ms. Much faster than powershell.
+  let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
+  let running = tasks.to_lowercase().contains(&process.to_lowercase());
 
   EngineResult {
     status: if running { "boost-active" } else { "idle" }.into(),
@@ -1182,11 +1179,8 @@ fn watch_game(game: &str) -> EngineResult {
 
 fn auto_boost_if_game(app: &tauri::AppHandle, game: &str) -> EngineResult {
   let (process, _) = game_process_and_path(game);
-  let wmi_check = command_output("powershell", &[
-    "-NoProfile", "-Command",
-    &format!("(Get-CimInstance Win32_Process -Filter \"Name='{process}'\").Count")
-  ]).unwrap_or_default();
-  let running = wmi_check.trim().parse::<u32>().unwrap_or(0) > 0;
+  let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
+  let running = tasks.to_lowercase().contains(&process.to_lowercase());
 
   if running {
     let app_clone = app.clone();
