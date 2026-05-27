@@ -117,7 +117,6 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
       if (result.status === 'admin_required') {
         toast('Admin required — click "Run as Admin" to enable real benchmark', 'error')
       }
-      if (command === 'benchmark') playBenchmarkComplete()
       addLog('Completed ' + command)
       return true
     } catch (err) {
@@ -163,10 +162,12 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
     if (busyRef.current) return
     if (!(await runCommand('scan'))) { toast('Scan failed — aborting optimization', 'error'); return }
     await new Promise(r => setTimeout(r, 400))
-    if (!(await runCommand('benchmark'))) { toast('Benchmark failed — aborting optimization', 'error'); return }
+    // benchmark: fire and forget directly (bypasses runCommand's busyRef to avoid deadlock with boost)
+    // benchmark-complete event listener handles results independently
+    runEngineCommand('benchmark', activeGame).catch(() => {})
     await new Promise(r => setTimeout(r, 400))
     await runCommand('apply_safe_session_boost')
-  }, [runCommand, toast])
+  }, [runCommand, toast, activeGame])
 
   const handleToggleLanguage = useCallback(() => setLanguage(language === 'en' ? 'es' : 'en'), [language, setLanguage])
 
@@ -180,9 +181,10 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
     if (!onboardingDone) setShowOnboarding(true)
   }, [onboardingDone])
 
-  // Listen for boost-complete from background thread (registered once)
+  // Listen for boost-complete and benchmark-complete from background threads (registered once)
   useEffect(() => {
-    let unlisten: (() => void) | undefined
+    let unlistenBoost: (() => void) | undefined
+    let unlistenBenchmark: (() => void) | undefined
     const isTauri = '__TAURI_INTERNALS__' in window
     if (isTauri) {
       import('@tauri-apps/api/event').then(({ listen }) => {
@@ -198,10 +200,25 @@ if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wa
           }
           busyRef.current = false
           if (mountedRef.current) setBusyCommand(null)
-        }).then(fn => { unlisten = fn })
+        }).then(fn => { unlistenBoost = fn })
+        listen<{ success: boolean; message: string; benchmark: BenchmarkResult; status: string; receipts: Receipt[] }>('benchmark-complete', (event) => {
+          if (event.payload.benchmark) {
+            setBenchmarkResult(event.payload.benchmark)
+            saveBenchmark(event.payload.benchmark, activeGame)
+          }
+          if (event.payload.receipts) {
+            setReceipts((prev) => [...event.payload.receipts, ...prev].slice(0, 40))
+          }
+          if (event.payload.status === 'admin_required') {
+            toast('Admin required — click "Run as Admin" to enable real benchmark', 'error')
+          } else {
+            playBenchmarkComplete()
+          }
+          // Don't touch busyRef/busyCommand — benchmark is fire-and-forget, boost owns busy state
+        }).then(fn => { unlistenBenchmark = fn })
       }).catch(() => {})
     }
-    return () => { unlisten?.() }
+    return () => { unlistenBoost?.(); unlistenBenchmark?.() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

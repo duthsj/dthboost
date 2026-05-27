@@ -225,7 +225,27 @@ fn run_engine_command(app: tauri::AppHandle, request: EngineRequest) -> Result<E
       })
     }
     "rollback_session" => rollback_session(),
-    "benchmark" => Ok(benchmark(&request.game)),
+    "benchmark" => {
+      let app_clone = app.clone();
+      let game = request.game.clone();
+      std::thread::spawn(move || {
+        let result = benchmark(&game);
+        let _ = app_clone.emit("benchmark-complete", serde_json::json!({
+          "success": result.status != "admin_required",
+          "message": result.message.clone(),
+          "benchmark": result.benchmark,
+          "status": result.status,
+          "receipts": result.receipts,
+        }));
+      });
+      Ok(EngineResult {
+        status: "benchmark-started".into(),
+        message: "Benchmark started in background (30s PresentMon capture)".into(),
+        receipts: vec![],
+        scan: None, benchmark: None, network: None, memory: None,
+        frametime: None, input_path: None, bottleneck: None, game_lab: None,
+      })
+    }
     "network_truth" => Ok(network_truth()),
     "memory_stutter_test" => Ok(memory_stutter_test()),
     "frametime_doctor" => Ok(frametime_doctor(&request.game)),
@@ -581,6 +601,7 @@ fn benchmark(game: &str) -> EngineResult {
     Some(pm_path) => {
       let csv_path = app_data_dir().join("last_benchmark.csv");
       let child = Command::new(&pm_path)
+        .creation_flags(CREATE_NO_WINDOW)
         .args([
           "--process_name",
           process,
@@ -1739,13 +1760,12 @@ pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![run_engine_command])
     .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
+      // Enable logging in release mode for debugging
+      app.handle().plugin(
+        tauri_plugin_log::Builder::default()
+          .level(log::LevelFilter::Info)
+          .build(),
+      )?;
 
       let show = MenuItemBuilder::with_id("show", "Show DTHBoost").build(app)?;
       let boost = MenuItemBuilder::with_id("boost", "Apply Boost").build(app)?;
