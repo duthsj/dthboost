@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { BenchmarkResult, BottleneckResult, GameKey, TFunction } from './types'
+import type { BottleneckResult, GameKey, TFunction } from './types'
 import { games } from '../data'
 import { translatePhrase } from '../i18n'
 import type { Language } from '../i18n'
@@ -28,7 +28,7 @@ export default function HeroPanel({
   bottleneckResult,
 }: HeroPanelProps) {
   const tx = (value: string | number | null | undefined) => translatePhrase(value, language)
-  const game = games[activeGame]
+  const game = games[activeGame] ?? games.Valorant
 
   return (
     <section className="hero-panel" aria-label="Current system state">

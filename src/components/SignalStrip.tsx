@@ -1,17 +1,16 @@
-import type { GameKey, TFunction } from './types'
+import type { GameKey } from './types'
 import { games } from '../data'
 import { translatePhrase } from '../i18n'
 import type { Language } from '../i18n'
 
 interface SignalStripProps {
-  t: TFunction
   language: Language
   activeGame: GameKey
 }
 
-export default function SignalStrip({ t, language, activeGame }: SignalStripProps) {
+export default function SignalStrip({ language, activeGame }: SignalStripProps) {
   const tx = (value: string | number | null | undefined) => translatePhrase(value, language)
-  const game = games[activeGame]
+  const game = games[activeGame] ?? games.Valorant
 
   return (
     <section className="signal-strip" aria-label="System signals">

@@ -2,7 +2,6 @@ import type { EngineCommand } from './types'
 import type { GameKey } from '../data'
 import { games } from '../data'
 import type { Language } from '../i18n'
-import { translatePhrase } from '../i18n'
 import type { TFunction } from './types'
 
 interface TopBarProps {
@@ -10,96 +9,46 @@ interface TopBarProps {
   language: Language
   activeGame: GameKey
   busyCommand: EngineCommand | null
-  canBoost: boolean
   onSelectGame: (key: GameKey) => void
-  onScan: () => void
-  onBenchmark: () => void
-  onBoost: () => void
   onToggleLanguage: () => void
+  onOptimize: () => void
 }
 
-export default function TopBar({
-  t,
-  language,
-  activeGame,
-  busyCommand,
-  canBoost,
-  onSelectGame,
-  onScan,
-  onBenchmark,
-  onBoost,
-  onToggleLanguage,
-}: TopBarProps) {
-  const tx = (value: string | number | null | undefined) => translatePhrase(value, language)
-  const game = games[activeGame]
+const gameColors: Record<string, string> = { Valorant: '#fa4454', CS2: '#de9b35', Fortnite: '#9d4de0' }
 
+export default function TopBar({ t: _t, language, activeGame, busyCommand, onSelectGame, onToggleLanguage, onOptimize }: TopBarProps) {
   return (
     <header className="topbar">
-      <div className="title-block">
-        <h1>{t.dashboard}</h1>
-        <p>{game.path}</p>
-      </div>
-
       <div className="game-tabs" role="tablist" aria-label="Game">
-        {(Object.keys(games) as GameKey[]).map((key) => (
-          <button
-            className={key === activeGame ? 'tab active' : 'tab'}
-            key={key}
-            onClick={() => onSelectGame(key)}
-            role="tab"
-            type="button"
-          >
-            {key}
-          </button>
-        ))}
+        {(Object.keys(games) as GameKey[]).map((key) => {
+          const active = key === activeGame
+          return (
+            <button
+              className={active ? 'tab active' : 'tab'}
+              key={key}
+              onClick={() => onSelectGame(key)}
+              role="tab"
+              type="button"
+              style={active ? { background: gameColors[key], borderColor: gameColors[key], color: '#0b0c0b' } : {}}
+            >
+              {key}
+            </button>
+          )
+        })}
       </div>
 
       <div className="action-row">
-        <button
-          className="language-toggle"
-          onClick={onToggleLanguage}
-          type="button"
-        >
+        <button className="language-toggle" onClick={onToggleLanguage} type="button">
           {language.toUpperCase()}
         </button>
         <button
-          className="action-btn secondary"
-          disabled={busyCommand !== null}
-          onClick={onScan}
-          type="button"
-        >
-          {busyCommand === 'scan' ? (
-            <><span className="spinner" />{t.scanning}</>
-          ) : (
-            t.scan
-          )}
-        </button>
-        <button
-          className="action-btn secondary"
-          disabled={busyCommand !== null}
-          onClick={onBenchmark}
-          type="button"
-        >
-          {busyCommand === 'benchmark' ? (
-            <><span className="spinner" />{t.measuring}</>
-          ) : (
-            t.benchmark
-          )}
-        </button>
-        <button
           className="action-btn primary"
-          disabled={!canBoost}
-          onClick={onBoost}
-          title={canBoost ? 'Arm Safe Session Boost' : t.needBaseline}
+          disabled={busyCommand !== null}
+          onClick={onOptimize}
           type="button"
+          style={{ fontSize: 15, padding: '10px 28px', fontWeight: 800 }}
         >
-          {busyCommand === 'apply_safe_session_boost' ? (
-            <><span className="spinner" />{t.arming}</>
-          ) : canBoost ? (
-            t.boost
-          ) : (
-            t.needBaseline
-          )}
+          {busyCommand ? <><span className="spinner" />Working...</> : 'Optimize 1-Click'}
         </button>
       </div>
     </header>

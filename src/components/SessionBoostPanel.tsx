@@ -1,4 +1,4 @@
-import type { EngineCommand, TFunction } from './types'
+import type { EngineCommand, Receipt, TFunction } from './types'
 import { translatePhrase } from '../i18n'
 import type { Language } from '../i18n'
 
@@ -8,21 +8,7 @@ type PlanItem = {
   copy: string
   receipt: string
   enabled: boolean
-}
-
-type Receipt = {
-  id: string
-  command: string
-  title: string
-  risk: string
-  scope: string
-  target: string
-  before: string
-  after: string
-  rollback: string
-  requiresAdmin: boolean
-  requiresReboot: boolean
-  timestamp: string
+  risk?: string
 }
 
 interface SessionBoostPanelProps {
@@ -83,7 +69,10 @@ export default function SessionBoostPanel({
               <strong>{tx(item.title)}</strong>
               <small>{tx(item.copy)}</small>
             </span>
-            <i className={item.enabled ? 'switch on' : 'switch'} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {item.risk && <span className={`risk-pill ${(item.risk || 'safe').toLowerCase()}`} style={{ fontSize: 10, padding: '2px 6px' }}>{tx(item.risk)}</span>}
+              <i className={item.enabled ? 'switch on' : 'switch'} />
+            </span>
           </button>
         ))}
       </div>
@@ -117,10 +106,7 @@ export default function SessionBoostPanel({
                 <small>{receipt.scope} &middot; {tx(receipt.risk)}</small>
               </span>
               <i className={`risk-pill ${riskClass(receipt.risk)}`}>
-                {new Date(Number(receipt.timestamp) * 1000).toLocaleTimeString([], {
-                  minute: '2-digit',
-                  second: '2-digit',
-                })}
+                {formatReceiptTime(receipt.timestamp)}
               </i>
             </button>
           ))}
@@ -137,4 +123,11 @@ export default function SessionBoostPanel({
 
 function riskClass(risk: string) {
   return risk.toLowerCase().replace(' ', '-')
+}
+
+function formatReceiptTime(timestamp: string): string {
+  const num = Number(timestamp)
+  const ms = Number.isNaN(num) ? Date.parse(timestamp) : num
+  if (Number.isNaN(ms)) return timestamp.slice(0, 16)
+  return new Date(ms).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })
 }

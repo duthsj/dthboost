@@ -15,7 +15,7 @@ function riskClass(risk: string) {
 
 export default function RecommendationsPanel({ t, language, activeGame }: RecommendationsPanelProps) {
   const tx = (value: string | number | null | undefined) => translatePhrase(value, language)
-  const game = games[activeGame]
+  const game = games[activeGame] ?? games.Valorant
 
   return (
     <section className="panel">

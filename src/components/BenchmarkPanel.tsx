@@ -10,9 +10,17 @@ interface BenchmarkPanelProps {
   benchmarkResult: BenchmarkResult | null
 }
 
+function n(val: number | undefined | null, decimals = 1): string {
+  return (val ?? 0).toFixed(decimals)
+}
+
+function r(val: number | undefined | null): number {
+  return Math.round(val ?? 0)
+}
+
 export default function BenchmarkPanel({ t, language, activeGame, benchmarkResult }: BenchmarkPanelProps) {
   const tx = (value: string | number | null | undefined) => translatePhrase(value, language)
-  const game = games[activeGame]
+  const game = games[activeGame] ?? games.Valorant
 
   return (
     <section className="panel">
@@ -40,33 +48,33 @@ export default function BenchmarkPanel({ t, language, activeGame, benchmarkResul
             <>
               <tr>
                 <td>{t.averageFps}</td>
-                <td>{Math.round(benchmarkResult.avgFps * 0.95)}</td>
-                <td>{benchmarkResult.avgFps}</td>
+                <td>{r(benchmarkResult.avgFps * 0.95)}</td>
+                <td>{r(benchmarkResult.avgFps)}</td>
                 <td>{tx(benchmarkResult.verdict)}</td>
               </tr>
               <tr>
                 <td>{t.oneLow}</td>
-                <td>{Math.round(benchmarkResult.onePercentLow * 0.93)}</td>
-                <td>{benchmarkResult.onePercentLow}</td>
+                <td>{r(benchmarkResult.onePercentLow * 0.93)}</td>
+                <td>{r(benchmarkResult.onePercentLow)}</td>
                 <td>{tx(benchmarkResult.confidence)}</td>
               </tr>
               <tr>
                 <td>{t.p99FrameTime}</td>
-                <td>{(benchmarkResult.p99FrameTime + 1.1).toFixed(1)} ms</td>
-                <td>{benchmarkResult.p99FrameTime.toFixed(1)} ms</td>
-                <td>{benchmarkResult.stutterCount} stutters</td>
+                <td>{n((benchmarkResult.p99FrameTime ?? 0) + 1.1)} ms</td>
+                <td>{n(benchmarkResult.p99FrameTime)} ms</td>
+                <td>{benchmarkResult.stutterCount ?? 0} stutters</td>
               </tr>
               <tr>
                 <td>{t.presentMode}</td>
-                <td>{benchmarkResult.presentMode}</td>
+                <td>{benchmarkResult.presentMode ?? 'Unknown'}</td>
                 <td>{benchmarkResult.allowsTearing ? tx('Tearing allowed') : tx('No tearing')}</td>
                 <td>{tx(benchmarkResult.hardVerdict)}</td>
               </tr>
               <tr>
                 <td>{t.cpuGpuTiming}</td>
-                <td>{benchmarkResult.msCPUWait.toFixed(1)} ms CPU wait</td>
-                <td>{benchmarkResult.msGPUBusy.toFixed(1)} ms GPU busy</td>
-                <td>{benchmarkResult.droppedFrames} {language === 'es' ? 'perdidos' : 'dropped'}</td>
+                <td>{n(benchmarkResult.msCPUWait)} ms CPU wait</td>
+                <td>{n(benchmarkResult.msGPUBusy)} ms GPU busy</td>
+                <td>{benchmarkResult.droppedFrames ?? 0} {language === 'es' ? 'perdidos' : 'dropped'}</td>
               </tr>
             </>
           ) : (
@@ -86,8 +94,8 @@ export default function BenchmarkPanel({ t, language, activeGame, benchmarkResul
           <strong>{tx(benchmarkResult.hardVerdict)}</strong>
           <p>
             {t.keepRule}
-            {' '}{t.displayLatency}: {benchmarkResult.displayLatency ?? 'n/a'} ms.
-            {' '}{t.clickToPhoton}: {benchmarkResult.clickToPhotonLatency ?? 'n/a'} ms.
+            {' '}{t.displayLatency}: {benchmarkResult.displayLatency != null ? `${benchmarkResult.displayLatency} ms` : 'n/a'}.
+            {' '}{t.clickToPhoton}: {benchmarkResult.clickToPhotonLatency != null ? `${benchmarkResult.clickToPhotonLatency} ms` : 'n/a'}.
           </p>
         </div>
       ) : null}

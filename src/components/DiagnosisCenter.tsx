@@ -22,10 +22,6 @@ interface DiagnosisCenterProps {
   onRunCommand: (command: EngineCommand) => void
 }
 
-function riskClass(risk: string) {
-  return risk.toLowerCase().replace(' ', '-')
-}
-
 export default function DiagnosisCenter({
   t,
   language,
@@ -128,7 +124,7 @@ export default function DiagnosisCenter({
           <span>{t.gameLab}</span>
           <strong>{gameLabResult?.labName ? tx(gameLabResult.labName) : `${activeGame} ${t.notTested.toLowerCase()}`}</strong>
           <p>
-            {gameLabResult
+            {gameLabResult?.tests
               ? gameLabResult.tests.map((test) => `${tx(test.name)}: ${tx(test.status)}`).join(' / ')
               : tx('Run the game-specific lab for Valorant, CS2 or Fortnite recommendations.')}
           </p>

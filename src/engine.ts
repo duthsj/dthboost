@@ -12,6 +12,15 @@ export type EngineCommand =
   | 'input_path_audit'
   | 'bottleneck_classifier'
   | 'game_smoothness_lab'
+  | 'close_background_apps'
+  | 'watch_game'
+  | 'install_presentmon'
+  | 'pre_warm_system'
+  | 'check_gpu_driver'
+  | 'toggle_autostart'
+  | 'check_admin'
+  | 'thermal_check'
+  | 'dpc_latency'
 
 export type EngineStatus =
   | 'idle'
@@ -52,6 +61,10 @@ export type ScanResult = {
   activePowerPlan: string
   gameMode: 'Enabled' | 'Disabled'
   overlays: string[]
+  cpuModel?: string
+  ramInfo?: string
+  diskInfo?: string
+  gpuDriver?: string
 }
 
 export type BenchmarkResult = {
@@ -157,7 +170,7 @@ const gamePaths: Record<GameKey, string> = {
 }
 
 function stamp() {
-  return new Date().toISOString()
+  return String(Date.now())
 }
 
 function wait(ms = 420) {

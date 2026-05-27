@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DTHBoost — More FPS for Valorant, CS2 & Fortnite</title>
+<meta name="description" content="20 Windows tweaks for Valorant, CS2 & Fortnite. More FPS. Safe. Free."/>
+<meta property="og:title" content="DTHBoost — Win More."/>
+<meta property="og:description" content="20 tweaks. More FPS. Auto-revert. Free."/>
+<meta property="og:image" content="https://dthboost.dev/og.png"/>
+<meta property="og:type" content="website"/>
+<meta name="theme-color" content="#050704"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='60' r='56' fill='%2378d08f'/%3E%3Ccircle cx='60' cy='60' r='48' fill='%23050704'/%3E%3Cpolygon points='66,26 42,66 52,66 46,94 78,54 68,54 76,26' fill='white'/%3E%3C/svg%3E"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>tailwind.config={theme:{extend:{colors:{bg:'#050704',panel:'#0a0d09',card:'#0f130f',border:'#1a1e19',green:'#78d08f',text:'#e6e7e3',muted:'#767973',dim:'#4c4f4a',val:'#fa4454',cs2:'#de9b35',fn:'#9d4de0'},fontFamily:{sans:['Inter','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;background:#050704}
+body{background:#050704;color:#e6e7e3;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:#78d08f;color:#050704}
+:focus-visible{outline:2px solid #78d08f;outline-offset:2px;border-radius:4px}
+.accent{background:linear-gradient(135deg,#78d08f,#a8e8b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card{background:#0a0d09;border:1px solid rgba(255,255,255,0.03);border-radius:20px;transition:all .35s cubic-bezier(.25,.1,.25,1)}
+.card:hover{border-color:rgba(120,208,143,.12);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:#78d08f;color:#050704;font-weight:700;font-size:15px;border-radius:100px;text-decoration:none;transition:all .3s cubic-bezier(.25,.1,.25,1);border:none;cursor:pointer}
+.btn:hover{background:#8adc9e;transform:translateY(-2px);box-shadow:0 12px 40px rgba(120,208,143,.25)}
+.btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border:1px solid rgba(255,255,255,.08);color:#a0a29d;font-weight:600;font-size:14px;border-radius:100px;text-decoration:none;transition:all .3s cubic-bezier(.25,.1,.25,1);cursor:pointer;background:transparent}
+.btn-ghost:hover{border-color:#78d08f;color:#78d08f}
+.nav-link{color:#767973;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-decoration:none;transition:color .15s}
+.nav-link:hover{color:#e6e7e3}
+.label{font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase}
+.reveal{transition:opacity .8s cubic-bezier(.22,1,.36,1),transform .8s cubic-bezier(.22,1,.36,1)}
+.display{font-weight:900;letter-spacing:-.04em;line-height:.94}
+</style>
+</head>
+<body>
+
+<!-- Skip link -->
+<a href="#main" style="position:absolute;top:-100px;left:16px;z-index:9999;padding:12px 20px;background:#78d08f;color:#050704;font-weight:700;border-radius:8px;text-decoration:none">Skip to content</a>
+
+<!-- NAV -->
+<header style="position:fixed;top:0;left:0;right:0;z-index:50;padding:16px 16px 0">
+  <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:52px;padding:0 22px;background:rgba(7,9,7,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.04);border-radius:100px">
+    <a href="#" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit" aria-label="DTHBoost home">
+      <svg width="22" height="22" viewBox="0 0 120 120" fill="none"><circle cx="60" cy="60" r="56" fill="#78d08f"/><circle cx="60" cy="60" r="48" fill="#050704"/><polygon points="66,26 42,66 52,66 46,94 78,54 68,54 76,26" fill="white"/></svg>
+      <span style="font-weight:800;font-size:15px;letter-spacing:-.02em">DTH<span style="color:#78d08f">Boost</span></span>
+    </a>
+    <nav style="display:flex;align-items:center;gap:28px" aria-label="Main navigation">
+      <a href="#how" class="nav-link" data-t="nav_how">How</a>
+      <a href="#features" class="nav-link" data-t="nav_changes">Changes</a>
+      <a href="#compare" class="nav-link" data-t="nav_compare">Compare</a>
+      <a href="#faq" class="nav-link" data-t="nav_faq">FAQ</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button id="langToggle" class="btn-ghost" style="padding:6px 12px;font-size:11px;font-weight:700" onclick="toggleLang()" aria-label="Switch language">ES</button>
+      <a href="https://github.com/dthboost/dthboost/releases/latest" class="btn" style="padding:10px 20px;font-size:13px">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<!-- HERO -->
+<section style="padding:160px 24px 80px;min-height:85vh;display:flex;align-items:center">
+  <div style="max-width:1100px;margin:0 auto;width:100%">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center">
+      <div>
+        <p class="label reveal" style="color:#78d08f;margin-bottom:20px" data-t="hero_label">Free · Open Source · Safe</p>
+        <h1 class="display reveal" style="font-size:clamp(4rem,7vw,7.5rem);margin-bottom:24px">MORE<br><span class="accent" style="font-size:130%">FPS</span></h1>
+        <p class="reveal" style="font-size:16px;color:#767973;line-height:1.6;margin-bottom:32px;max-width:380px" data-t="hero_sub">20 tweaks that kick in while you play. More FPS. Auto-reverts. No bans. No BS.</p>
+        <div class="reveal" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <a href="https://github.com/dthboost/dthboost/releases/latest" class="btn" style="padding:16px 32px;font-size:16px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Download Free
+          </a>
+          <span style="font-size:12px;color:#4c4f4a">v0.9 · ~7 MB · Windows 10/11</span>
+        </div>
+        <div class="reveal" style="display:flex;gap:24px;margin-top:32px">
+          <div><span class="accent" style="font-size:28px;font-family:'JetBrains Mono',monospace;font-weight:900">20</span><p style="font-size:10px;color:#4c4f4a;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Tweaks</p></div>
+          <div><span style="font-size:28px;font-family:'JetBrains Mono',monospace;font-weight:900">25<span style="font-size:14px;color:#4c4f4a">MB</span></span><p style="font-size:10px;color:#4c4f4a;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">RAM Idle</p></div>
+          <div><span style="font-size:28px;font-family:'JetBrains Mono',monospace;font-weight:900">MIT</span><p style="font-size:10px;color:#4c4f4a;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">License</p></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="background:#080b08;padding:40px;text-align:center">
+            <p class="label" style="color:#4c4f4a;margin-bottom:16px">BEFORE & AFTER · Valorant · RTX 3060</p>
+            <div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin-bottom:4px"><span style="font-size:14px;color:#4c4f4a">+</span><span class="accent" style="font-size:88px;font-family:'JetBrains Mono',monospace;font-weight:900;line-height:1">5.4</span><span style="font-size:20px;color:#78d08f;font-weight:700">%</span></div>
+            <p style="font-size:12px;color:#4c4f4a;margin-bottom:28px">More FPS on average</p>
+            <div style="display:flex;flex-direction:column;gap:12px;max-width:320px;margin:0 auto">
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-size:10px;color:#4c4f4a;width:72px;text-align:right">Smoothness</span><div style="flex:1;height:5px;background:#0a0d09;border-radius:3px;overflow:hidden"><div style="height:100%;background:#78d08f;border-radius:3px;width:68%"></div></div><span style="font-size:10px;color:#78d08f;font-weight:700;font-family:'JetBrains Mono',monospace">+7.1%</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-size:10px;color:#4c4f4a;width:72px;text-align:right">Lag Spikes</span><div style="flex:1;height:5px;background:#0a0d09;border-radius:3px;overflow:hidden"><div style="height:100%;background:#78d08f;border-radius:3px;width:55%"></div></div><span style="font-size:10px;color:#78d08f;font-weight:700;font-family:'JetBrains Mono',monospace">−0.7ms</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-size:10px;color:#4c4f4a;width:72px;text-align:right">Stutters</span><div style="flex:1;height:5px;background:#0a0d09;border-radius:3px;overflow:hidden"><div style="height:100%;background:#78d08f;border-radius:3px;width:82%"></div></div><span style="font-size:10px;color:#78d08f;font-weight:700;font-family:'JetBrains Mono',monospace">−62%</span></div>
+            </div>
+            <p style="font-size:10px;color:#4c4f4a;margin-top:24px;line-height:1.5">Tested with Intel PresentMon<br>Your results may differ — check yours.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="padding:100px 24px;border-top:1px solid rgba(255,255,255,.04)">
+  <div style="max-width:1000px;margin:0 auto">
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:64px;align-items:start">
+      <div class="reveal">
+        <p class="label" style="color:#78d08f;margin-bottom:12px">How it works</p>
+        <h2 class="display" style="font-size:clamp(2.2rem,4vw,3.5rem);margin-bottom:12px">Scan.<br>Benchmark.<br>Dominate.</h2>
+        <p style="font-size:14px;color:#767973;line-height:1.6">Everything goes back when you close the game. Safe. No bans.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:28px">
+        <div class="card reveal" style="padding:24px;display:flex;gap:18px;align-items:flex-start">
+          <div style="width:48px;height:48px;border-radius:14px;background:rgba(120,208,143,.06);border:1px solid rgba(120,208,143,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:'JetBrains Mono',monospace;font-weight:900;font-size:20px;color:#78d08f">1</span></div>
+          <div style="padding-top:2px"><h3 style="font-size:18px;font-weight:700;margin-bottom:4px"data-t="how_1t">System Scan</h3><p style="font-size:13px;color:#767973;line-height:1.5">Checks your GPU, monitor, and settings — in seconds.</p></div>
+        </div>
+        <div class="card reveal" style="padding:24px;display:flex;gap:18px;align-items:flex-start">
+          <div style="width:48px;height:48px;border-radius:14px;background:rgba(104,198,189,.06);border:1px solid rgba(104,198,189,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:'JetBrains Mono',monospace;font-weight:900;font-size:20px;color:#68c6bd">2</span></div>
+          <div style="padding-top:2px"><h3 style="font-size:18px;font-weight:700;margin-bottom:4px"data-t="how_2t">FPS Test with PresentMon</h3><p style="font-size:13px;color:#767973;line-height:1.5">See your real FPS. Check smoothness and stutters. Super precise.</p></div>
+        </div>
+        <div class="card reveal" style="padding:24px;display:flex;gap:18px;align-items:flex-start;border-color:rgba(120,208,143,.15)">
+          <div style="width:48px;height:48px;border-radius:14px;background:rgba(120,208,143,.1);border:1px solid rgba(120,208,143,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-family:'JetBrains Mono',monospace;font-weight:900;font-size:20px;color:#78d08f">3</span></div>
+          <div style="padding-top:2px"><h3 style="font-size:18px;font-weight:700;margin-bottom:4px"data-t="how_3t">20 Tweaks On</h3><p style="font-size:13px;color:#767973;line-height:1.5">Turns off laggy settings. GameDVR, Core Parking, and more. All reversible.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- APP DEMO -->
+<section style="padding:120px 24px;background:#080b08;border-top:1px solid rgba(255,255,255,.04);perspective:1400px;overflow:hidden">
+  <div style="max-width:900px;margin:0 auto;text-align:center">
+    <h2 class="display reveal" style="font-size:clamp(2.5rem,5vw,4rem);margin-bottom:64px">See it yourself.</h2>
+    <div style="display:flex;justify-content:center;align-items:center;min-height:520px;position:relative">
+      <div style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);width:600px;height:50px;background:radial-gradient(ellipse,rgba(120,208,143,.15),transparent);filter:blur(40px)"></div>
+      <div id="tilt-card" class="card" style="width:780px;transform:rotateX(3deg) rotateY(-5deg);transition:transform .5s cubic-bezier(.25,.1,.25,1);cursor:default;padding:0;overflow:hidden">
+        <div style="background:#0a0c0a;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)">
+          <span style="width:10px;height:10px;border-radius:50%;background:rgba(228,103,103,.5)"></span><span style="width:10px;height:10px;border-radius:50%;background:rgba(240,179,75,.5)"></span><span style="width:10px;height:10px;border-radius:50%;background:rgba(120,208,143,.5)"></span>
+          <span style="font-size:10px;color:#4c4f4a;margin-left:8px;font-family:JetBrains Mono,monospace">DTHBoost v0.9.0</span><span style="margin-left:auto;font-size:9px;color:#78d08f;font-weight:700">OPTIMIZED</span>
+        </div>
+        <div style="display:flex;min-height:300px">
+          <div style="width:160px;background:#080a08;padding:14px 10px;border-right:1px solid rgba(255,255,255,.03);display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 120 120" fill="none"><circle cx="60" cy="60" r="56" fill="#78d08f"/><circle cx="60" cy="60" r="48" fill="#080a08"/><polygon points="66,26 42,66 52,66 46,94 78,54 68,54 76,26" fill="white"/></svg><span style="font-size:10px;font-weight:800">DTH<span style="color:#78d08f">Boost</span></span></div>
+            <div style="height:4px;width:65%;background:rgba(120,208,143,.2);border-radius:2px"></div><div style="height:3px;width:85%;background:rgba(255,255,255,.04);border-radius:2px"></div><div style="height:3px;width:55%;background:rgba(255,255,255,.04);border-radius:2px"></div>
+            <div style="margin-top:auto;padding:6px 8px;background:rgba(120,208,143,.04);border:1px solid rgba(120,208,143,.1);border-radius:6px;display:flex;align-items:center;gap:5px"><span style="width:5px;height:5px;border-radius:50%;background:#78d08f"></span><span style="font-size:8px;color:#78d08f;font-weight:700">GUARD</span></div>
+          </div>
+          <div style="flex:1;padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(120,208,143,.04);border:1px solid rgba(120,208,143,.1);border-radius:8px"><span style="width:6px;height:6px;border-radius:50%;background:#78d08f"></span><span style="font-size:9px;color:#78d08f;font-weight:700">BOOSTED</span><span style="margin-left:auto;font-size:9px;color:#4c4f4a">GPU: NVIDIA · 240Hz</span></div>
+            <div style="display:flex;gap:5px"><span style="padding:3px 8px;background:rgba(250,68,84,.12);color:#fa4454;font-size:9px;font-weight:700;border-radius:5px">VALORANT</span><span style="padding:3px 8px;background:rgba(255,255,255,.03);color:#767973;font-size:9px;border-radius:5px">CS2</span><span style="padding:3px 8px;background:rgba(255,255,255,.03);color:#767973;font-size:9px;border-radius:5px">FORTNITE</span></div>
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;flex:1">
+              <div style="background:#080a08;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-size:8px;color:#4c4f4a">Ready</span><span style="font-size:32px;font-family:JetBrains Mono,monospace;font-weight:900;color:#78d08f;line-height:1">78</span></div>
+              <div style="background:#080a08;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:#4c4f4a">Avg FPS</span><span style="font-size:9px;font-family:JetBrains Mono,monospace;color:#78d08f;font-weight:700">251</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:#4c4f4a">Smooth</span><span style="font-size:9px;font-family:JetBrains Mono,monospace;color:#68c6bd;font-weight:700">194</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:#4c4f4a">Worst Lag</span><span style="font-size:9px;font-family:JetBrains Mono,monospace;color:#e6e7e3;font-weight:700">8.7ms</span></div>
+                <div style="height:26px;background:#0a0d09;border-radius:4px;display:flex;align-items:flex-end;gap:1px;padding:2px"><div style="flex:1;background:rgba(120,208,143,.2);border-radius:1px 1px 0 0;height:50%"></div><div style="flex:1;background:rgba(120,208,143,.3);border-radius:1px 1px 0 0;height:70%"></div><div style="flex:1;background:rgba(120,208,143,.15);border-radius:1px 1px 0 0;height:40%"></div><div style="flex:1;background:rgba(120,208,143,.25);border-radius:1px 1px 0 0;height:85%"></div><div style="flex:1;background:rgba(120,208,143,.18);border-radius:1px 1px 0 0;height:60%"></div></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px"><div style="flex:1;padding:6px;background:#78d08f;color:#050704;text-align:center;font-size:9px;font-weight:700;border-radius:6px">Scan</div><div style="flex:1;padding:6px;background:#0a0d09;border:1px solid rgba(255,255,255,.04);text-align:center;font-size:9px;color:#767973;border-radius:6px">Bench</div><div style="flex:1;padding:6px;background:#0a0d09;border:1px solid rgba(255,255,255,.04);text-align:center;font-size:9px;color:#767973;border-radius:6px">Boost</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="reveal" style="text-align:center;margin-top:48px;font-size:14px;color:#767973">Hover your mouse over the app — it moves in 3D.</p>
+  </div>
+</section>
+<!-- WHAT CHANGES — merged, compact -->
+<section style="padding:100px 24px;border-top:1px solid rgba(255,255,255,.04)">
+  <div style="max-width:900px;margin:0 auto">
+    <h2 class="display reveal" style="font-size:clamp(2.2rem,4vw,3.5rem);text-align:center;margin-bottom:64px"data-t="changes_title">What DTHBoost actually does.</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:40px" class="reveal">
+      <div class="card" style="padding:22px 24px">
+        <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#e46767;margin-bottom:16px"data-t="changes_bad_label">Windows slows you down</p>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div><span style="font-size:14px;font-weight:700;color:#e6e7e3">GameDVR ON</span><p style="font-size:12px;color:#767973;margin-top:2px">Records screen. Uses GPU.</p></div>
+          <div><span style="font-size:14px;font-weight:700;color:#e6e7e3">Cores sleep</span><p style="font-size:12px;color:#767973;margin-top:2px">Parks CPU to save power.</p></div>
+          <div><span style="font-size:14px;font-weight:700;color:#e6e7e3">Slow input</span><p style="font-size:12px;color:#767973;margin-top:2px">Checks mouse every 15.6ms.</p></div>
+          <div><span style="font-size:14px;font-weight:700;color:#e6e7e3">Power saving</span><p style="font-size:12px;color:#767973;margin-top:2px">CPU throttles in matches.</p></div>
+        </div>
+      </div>
+      <div class="card" style="padding:22px 24px;border-color:rgba(120,208,143,.15)">
+        <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#78d08f;margin-bottom:16px"data-t="changes_good_label">DTHBoost fixes it</p>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div><span style="font-size:14px;font-weight:700;color:#78d08f">GameDVR OFF</span><p style="font-size:12px;color:#767973;margin-top:2px">Frees GPU. More FPS.</p></div>
+          <div><span style="font-size:14px;font-weight:700;color:#78d08f">Cores ON</span><p style="font-size:12px;color:#767973;margin-top:2px">All active. Smoother.</p></div>
+          <div><span style="font-size:14px;font-weight:700;color:#78d08f">Timer 0.5ms</span><p style="font-size:12px;color:#767973;margin-top:2px">30x faster input.</p></div>
+          <div><span style="font-size:14px;font-weight:700;color:#78d08f">Power MAX</span><p style="font-size:12px;color:#767973;margin-top:2px">Full speed always.</p></div>
+        </div>
+      </div>
+    </div>
+    <p class="reveal" style="text-align:center;font-size:14px;color:#767973">
+      <strong style="color:#78d08f">+16 more tweaks.</strong> Audio priority, Spectre/Meltdown off, MSI Mode, Defender exclusion. All reversible. Auto-revert on game exit. Anti-cheat safe.
+    </p>
+  </div>
+</section>
+<!-- GAMES + COMPARE -->
+<section id="compare" style="padding:100px 24px;border-top:1px solid rgba(255,255,255,.04)">
+  <div style="max-width:1000px;margin:0 auto">
+    <p class="label reveal" style="color:#4c4f4a;text-align:center;margin-bottom:12px">Supported Games</p>
+    <h2 class="display reveal" style="font-size:clamp(2.2rem,4vw,3.5rem);text-align:center;margin-bottom:8px"data-t="games_title">Valorant. CS2. Fortnite.</h2>
+    <p class="reveal" style="font-size:14px;color:#767973;text-align:center;margin-bottom:48px"data-t="games_sub">For competitive shooters. More soon.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:64px" class="reveal">
+      <div class="card" style="padding:28px 20px;text-align:center;border-top:2px solid #fa4454"><div style="font-size:20px;font-weight:900;color:#fa4454;margin-bottom:10px">VALORANT</div><p style="font-size:12px;color:#767973;line-height:1.6">Less input lag · Stops overlays · Better settings</p></div>
+      <div class="card" style="padding:28px 20px;text-align:center;border-top:2px solid #de9b35"><div style="font-size:20px;font-weight:900;color:#de9b35;margin-bottom:10px">CS2</div><p style="font-size:12px;color:#767973;line-height:1.6">FPS cap · VRR test · Source 2 tweaks</p></div>
+      <div class="card" style="padding:28px 20px;text-align:center;border-top:2px solid #9d4de0"><div style="font-size:20px;font-weight:900;color:#9d4de0;margin-bottom:10px">FORTNITE</div><p style="font-size:12px;color:#767973;line-height:1.6">DX12 vs Performance · Shader cache</p></div>
+    </div>
+    <p class="label reveal" style="color:#4c4f4a;text-align:center;margin-bottom:20px"data-t="compare_title">How DTHBoost compares</p>
+    <div class="overflow-x-auto reveal">
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,.05);text-align:left;color:#4c4f4a;font-size:10px;text-transform:uppercase;letter-spacing:.12em"><th style="padding:14px 18px;font-weight:600">Feature</th><th style="padding:14px 18px;font-weight:700;color:#78d08f">DTHBoost</th><th style="padding:14px 18px">Razer Cortex</th><th style="padding:14px 18px">Hone</th><th style="padding:14px 18px">Process Lasso</th></tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.02)"><td style="padding:12px 18px">Price</td><td style="padding:12px 18px;color:#78d08f;font-weight:700">Free</td><td style="padding:12px 18px">Free</td><td style="padding:12px 18px;color:#4c4f4a">$4.99/mo</td><td style="padding:12px 18px;color:#4c4f4a">$29.95</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.02)"><td style="padding:12px 18px">Open Source</td><td style="padding:12px 18px;color:#78d08f;font-size:16px;font-weight:700">✓</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.02)"><td style="padding:12px 18px">Real Proof</td><td style="padding:12px 18px;color:#78d08f;font-size:16px;font-weight:700">✓</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.02)"><td style="padding:12px 18px">Total Tweaks</td><td style="padding:12px 18px;color:#78d08f;font-weight:700">20</td><td style="padding:12px 18px">8</td><td style="padding:12px 18px">12</td><td style="padding:12px 18px">5</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.02)"><td style="padding:12px 18px">Auto-Revert</td><td style="padding:12px 18px;color:#78d08f;font-size:16px;font-weight:700">✓</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td></tr>
+          <tr><td style="padding:12px 18px">Español</td><td style="padding:12px 18px;color:#78d08f;font-size:16px;font-weight:700">✓</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td><td style="padding:12px 18px;color:#4c4f4a">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="padding:100px 24px;background:#080b08;border-top:1px solid rgba(255,255,255,.04)">
+  <div style="max-width:600px;margin:0 auto">
+    <p class="label reveal" style="color:#4c4f4a;text-align:center;margin-bottom:12px">FAQ</p>
+    <h2 class="display reveal" style="font-size:clamp(2rem,3vw,2.8rem);text-align:center;margin-bottom:48px"data-t="faq_title">Real questions. Real answers.</h2>
+    <div style="display:flex;flex-direction:column;gap:8px" class="reveal">
+      <details class="card" style="padding:18px 22px;cursor:pointer"><summary style="font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:15px">Will this get me VAC banned? <span style="color:rgba(120,208,143,.4);font-size:14px">+</span></summary><p style="font-size:13px;color:#767973;margin-top:12px;line-height:1.6">Nope. DTHBoost doesn't touch game files. Only standard Windows settings. Safe for VAC, Faceit, Vanguard.</p></details>
+      <details class="card" style="padding:18px 22px;cursor:pointer"><summary style="font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:15px">Is it actually free? What's the catch? <span style="color:rgba(120,208,143,.4);font-size:14px">+</span></summary><p style="font-size:13px;color:#767973;margin-top:12px;line-height:1.6">Zero catch. Open source. No ads, no data collection, no paid version. Built for gamers.</p></details>
+      <details class="card" style="padding:18px 22px;cursor:pointer"><summary style="font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:15px">How is this different from Razer Cortex? <span style="color:rgba(120,208,143,.4);font-size:14px">+</span></summary><p style="font-size:13px;color:#767973;margin-top:12px;line-height:1.6">Real proof, auto-revert, open source. Cortex doesn't have any of that.</p></details>
+      <details class="card" style="padding:18px 22px;cursor:pointer"><summary style="font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:15px">What if the boost makes things worse? <span style="color:rgba(120,208,143,.4);font-size:14px">+</span></summary><p style="font-size:13px;color:#767973;margin-top:12px;line-height:1.6">Hit Rollback — everything goes back. Or just close your game. You're safe.</p></details>
+      <details class="card" style="padding:18px 22px;cursor:pointer"><summary style="font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:15px">What do I need? <span style="color:rgba(120,208,143,.4);font-size:14px">+</span></summary><p style="font-size:13px;color:#767973;margin-top:12px;line-height:1.6">Windows 10 or 11 (64-bit). 16 tweaks work without admin. 4 need admin. Only 25 MB RAM. PresentMon installs itself.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="padding:100px 24px;text-align:center;border-top:1px solid rgba(255,255,255,.04)">
+  <div style="max-width:600px;margin:0 auto">
+    <h2 class="display reveal" style="font-size:clamp(2.2rem,4vw,3.5rem);margin-bottom:12px">Stop guessing.<br><span class="accent">Start winning.</span></h2>
+    <p class="reveal" style="font-size:15px;color:#767973;margin-bottom:36px">Free. Open source. No signup. 30 seconds to more FPS.</p>
+    <div class="reveal" style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+      <a href="https://github.com/dthboost/dthboost/releases/latest" class="btn" style="padding:18px 36px;font-size:17px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Download Free
+      </a>
+      <a href="https://github.com/dthboost/dthboost" class="btn-ghost" style="padding:18px 28px;font-size:16px">GitHub →</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- FOOTER -->
+<footer style="padding:64px 24px 40px;border-top:1px solid rgba(255,255,255,.04);background:#080b08">
+  <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;font-size:13px">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <svg width="18" height="18" viewBox="0 0 120 120" fill="none"><circle cx="60" cy="60" r="56" fill="#78d08f"/><circle cx="60" cy="60" r="48" fill="#070a07"/><polygon points="66,26 42,66 52,66 46,94 78,54 68,54 76,26" fill="white"/></svg>
+        <span style="font-weight:800">DTH<span style="color:#78d08f">Boost</span></span>
+      </div>
+      <p style="color:#4c4f4a;line-height:1.6;font-size:12px">Free gaming optimizer.<br>20 Windows tweaks.<br>Auto-revert. Safe.</p>
+    </div>
+    <div>
+      <p style="font-weight:700;color:#767973;margin-bottom:12px;font-size:11px;text-transform:uppercase;letter-spacing:.1em">Product</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="#how" style="color:#4c4f4a;text-decoration:none;font-size:12px">How it works</a>
+        <a href="#compare" style="color:#4c4f4a;text-decoration:none;font-size:12px">Compare</a>
+        <a href="https://github.com/dthboost/dthboost/releases/latest" style="color:#4c4f4a;text-decoration:none;font-size:12px">Download</a>
+      </div>
+    </div>
+    <div>
+      <p style="font-weight:700;color:#767973;margin-bottom:12px;font-size:11px;text-transform:uppercase;letter-spacing:.1em">Community</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="https://github.com/dthboost/dthboost" style="color:#4c4f4a;text-decoration:none;font-size:12px">GitHub</a>
+        <a href="#" style="color:#4c4f4a;text-decoration:none;font-size:12px">Discord</a>
+        <a href="#" style="color:#4c4f4a;text-decoration:none;font-size:12px">YouTube</a>
+        <a href="#" style="color:#4c4f4a;text-decoration:none;font-size:12px">Docs</a>
+      </div>
+    </div>
+    <div>
+      <p style="font-weight:700;color:#767973;margin-bottom:12px;font-size:11px;text-transform:uppercase;letter-spacing:.1em">Legal</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="https://github.com/dthboost/dthboost/blob/main/LICENSE" style="color:#4c4f4a;text-decoration:none;font-size:12px">MIT License</a>
+        <a href="#" style="color:#4c4f4a;text-decoration:none;font-size:12px">Privacy Policy</a>
+        <span style="color:#4c4f4a;font-size:12px">© 2026 DTHBoost</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// i18n - textContent so layout never breaks
+const i18n={en:{hero_label:'Free · Open Source · Safe',hero_sub:'20 tweaks that kick in while you play. More FPS. Auto-reverts. No bans. No BS.',hero_cta:'Download Free',hero_tweaks:'Tweaks',hero_ram:'RAM Idle',hero_lic:'License',how_title:'Scan. Benchmark. Dominate.',how_sub:'Everything goes back when you close the game. Safe. No bans.',how_1t:'System Scan',how_1d:'GPU, refresh rate, power plan, overlays, Game Mode — detected in seconds.',how_2t:'FPS Test with PresentMon',how_2d:'Real FPS data. Smoothness. Frame times. Stutter count. Intel-level precision.',how_3t:'20 Tweaks On',how_3d:'GameDVR off. Core parking off. Timer 0.5ms. MMCSS. Spectre/Meltdown off. 15 more. All reversible.',demo_title:'See it yourself.',demo_badge:'Hover your mouse over the app — it moves in 3D.',changes_title:'What DTHBoost actually does.',changes_bad_label:'Windows slows you down',changes_good_label:'DTHBoost fixes it',changes_1b:'GameDVR ON',changes_1bd:'Records screen. Uses GPU.',changes_1g:'GameDVR OFF',changes_1gd:'Frees GPU. More FPS.',changes_2b:'Cores sleep',changes_2bd:'Parks CPU to save power.',changes_2g:'Cores ON',changes_2gd:'All active. Smoother.',changes_3b:'Slow input',changes_3bd:'Checks mouse every 15.6ms.',changes_3g:'Timer 0.5ms',changes_3gd:'30x faster input.',changes_4b:'Power saving',changes_4bd:'CPU throttles in matches.',changes_4g:'Power MAX',changes_4gd:'Full speed always.',changes_more:'+16 more tweaks. Audio priority, Spectre/Meltdown off, MSI Mode, Defender exclusion. All reversible. Auto-revert on game exit. Anti-cheat safe.',games_title:'Valorant. CS2. Fortnite.',games_sub:'For competitive shooters. More soon.',compare_title:'How DTHBoost compares',cta_title:'Stop guessing. Start winning.',cta_sub:'Free. Open source. No signup. 30 seconds to more FPS.',faq_title:'Real questions. Real answers.',faq_q1:'Will this get me VAC banned?',faq_a1:'Nope. DTHBoost does not touch game files. Only standard Windows settings. Safe for VAC, Faceit, Vanguard.',faq_q2:'Is it actually free? What is the catch?',faq_a2:'Zero catch. Open source. No ads, no data collection, no paid version. Built for gamers.',faq_q3:'How is this different from Razer Cortex?',faq_a3:'Real proof, auto-revert, open source. Cortex does not have any of that.',faq_q4:'What if the boost makes things worse?',faq_a4:'Hit Rollback — everything goes back. Or just close your game. You are safe.',faq_q5:'What do I need?',faq_a5:'Windows 10 or 11 (64-bit). 16 tweaks work without admin. 4 need admin. Only 25 MB RAM. PresentMon installs itself.'},es:{hero_label:'Gratis · Open Source · Seguro',hero_sub:'20 tweaks que se activan al jugar. Mas FPS. Auto-revierten. Sin bans.',hero_cta:'Descargar Gratis',hero_tweaks:'Tweaks',hero_ram:'RAM Inactivo',hero_lic:'Licencia',how_title:'Escanea. Mide. Domina.',how_sub:'Todo vuelve al cerrar el juego. Seguro. Sin bans.',how_1t:'Escaneo del Sistema',how_1d:'GPU, tasa de refresco, plan de energia, overlays, Game Mode — detectado en segundos.',how_2t:'Test FPS con PresentMon',how_2d:'Datos reales de FPS. Fluidez. Frame times. Stutters. Precision Intel.',how_3t:'20 Tweaks Activados',how_3d:'GameDVR off. Core parking off. Timer 0.5ms. MMCSS. Spectre/Meltdown off. 15 mas. Todo reversible.',demo_title:'Miralo tu mismo.',demo_badge:'Pasa el mouse sobre la app — se mueve en 3D.',changes_title:'Lo que DTHBoost realmente hace.',changes_bad_label:'Windows te frena',changes_good_label:'DTHBoost lo arregla',changes_1b:'GameDVR ON',changes_1bd:'Graba pantalla. Usa GPU.',changes_1g:'GameDVR OFF',changes_1gd:'Libera GPU. Mas FPS.',changes_2b:'Nucleos dormidos',changes_2bd:'Aparca CPU para ahorrar.',changes_2g:'Nucleos ON',changes_2gd:'Todos activos. Mas fluido.',changes_3b:'Input lento',changes_3bd:'Revisa el mouse cada 15.6ms.',changes_3g:'Timer 0.5ms',changes_3gd:'Input 30x mas rapido.',changes_4b:'Ahorro de energia',changes_4bd:'CPU se frena en partida.',changes_4g:'Potencia MAX',changes_4gd:'Velocidad total siempre.',changes_more:'+16 tweaks mas. Prioridad de audio, Spectre/Meltdown off, MSI Mode, exclusion Defender. Todo reversible. Auto-revierte al cerrar el juego. Anti-cheat seguro.',games_title:'Valorant. CS2. Fortnite.',games_sub:'Para shooters competitivos. Mas juegos pronto.',compare_title:'Comparativa',cta_title:'Deja de adivinar. Empieza a ganar.',cta_sub:'Gratis. Open source. Sin registro. 30 segundos para mas FPS.',faq_title:'Preguntas reales. Respuestas reales.',faq_q1:'¿Me banearan por VAC?',faq_a1:'No. DTHBoost no toca archivos del juego. Solo configuracion de Windows. Seguro para VAC, Faceit, Vanguard.',faq_q2:'¿Es realmente gratis? ¿Cual es el truco?',faq_a2:'Sin truco. Open source. Sin anuncios, sin datos, sin version de pago. Hecho para gamers.',faq_q3:'¿En que se diferencia de Razer Cortex?',faq_a3:'Pruebas reales, auto-revierte, open source. Cortex no tiene nada de eso.',faq_q4:'¿Y si el boost empeora las cosas?',faq_a4:'Pulsa Rollback — todo vuelve. O cierra el juego. Estas a salvo.',faq_q5:'¿Que necesito?',faq_a5:'Windows 10 u 11 (64-bit). 16 tweaks sin admin. 4 necesitan admin. Solo 25 MB RAM. PresentMon se instala solo.'}};
+let lang='en';
+function toggleLang(){lang=lang==='en'?'es':'en';var btn=document.getElementById('langToggle');btn.textContent=lang==='en'?'ES':'EN';localStorage.setItem('dthboost-lang',lang);document.querySelectorAll('[data-t]').forEach(function(el){var k=el.dataset.t;if(i18n[lang] && i18n[lang][k])el.textContent=i18n[lang][k]})}
+(function(){try{var s=localStorage.getItem('dthboost-lang');if(s==='es'){lang='es';var btn=document.getElementById('langToggle');if(btn)btn.textContent='EN';setTimeout(function(){document.querySelectorAll('[data-t]').forEach(function(el){var k=el.dataset.t;if(i18n.es && i18n.es[k])el.textContent=i18n.es[k]})},200)}}catch(e){}})()
+
+// Lenis + GSAP (with fallback)
+try{
+  const lenis=new Lenis({duration:1.2,easing:t=>Math.min(1,1.001-Math.pow(2,-10*t))});
+  lenis.on('scroll',ScrollTrigger.update);
+  gsap.ticker.add(time=>lenis.raf(time*1000));
+  gsap.registerPlugin(ScrollTrigger);
+  // Magnetic buttons
+  document.querySelectorAll('.btn,.btn-ghost').forEach(btn=>{
+    btn.addEventListener('mousemove',e=>{const r=btn.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;gsap.to(btn,{duration:.3,x:x*.12,y:y*.12,ease:'power2.out',overwrite:'auto'})});
+    btn.addEventListener('mouseleave',()=>{gsap.to(btn,{duration:.5,x:0,y:0,ease:'elastic.out(1,.5)',overwrite:'auto'})});
+  });
+}catch(e){console.log('Animation libs not loaded, running without smooth scroll')}
+
+// Scroll reveal (always works, no dependencies)
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';}})},{threshold:.1,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>{el.style.opacity='0';el.style.transform='translateY(36px)';obs.observe(el)});
+
+// GitHub stars
+fetch('https://api.github.com/repos/dthboost/dthboost').then(r=>r.json()).then(d=>{if(d.stargazers_count)document.querySelectorAll('.gh-stars').forEach(el=>{el.textContent='★ '+(d.stargazers_count/1000).toFixed(1)+'k'})}).catch(()=>{});
+
+// 3D tilt — dramatic angles, dynamic shadow, moving glare
+(function(){
+  var c = document.getElementById('tilt-card');
+  if (!c) return;
+  // Add glare element
+  var glare = document.createElement('div');
+  glare.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:2;border-radius:22px;transition:opacity .6s;opacity:0;background:radial-gradient(ellipse at center,rgba(255,255,255,.08) 0%,transparent 70%)';
+  c.appendChild(glare);
+  c.addEventListener('mousemove', function(e){
+    var r = c.getBoundingClientRect();
+    var x = (e.clientX - r.left) / r.width - 0.5;
+    var y = (e.clientY - r.top) / r.height - 0.5;
+    var rx = 3 - y * 20;
+    var ry = -5 + x * 25;
+    c.style.transform = 'rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) scale(1.03)';
+    c.style.boxShadow = (40+Math.abs(x)*40) + 'px ' + (100+Math.abs(y)*60) + 'px rgba(0,0,0,.5), 0 0 ' + (60+Math.abs(x+y)*40) + 'px rgba(120,208,143,' + (.08+Math.abs(x+y)*.08) + '), 0 1px 0 rgba(255,255,255,.03) inset';
+    // Move glare
+    glare.style.opacity = '1';
+    glare.style.background = 'radial-gradient(ellipse at ' + (50+x*60) + '% ' + (50+y*60) + '%, rgba(255,255,255,.07) 0%, transparent 70%)';
+  });
+  c.addEventListener('mouseleave', function(){
+    c.style.transform = 'rotateX(3deg) rotateY(-5deg) scale(1)';
+    c.style.boxShadow = '0 30px 80px rgba(0,0,0,.5), 0 0 60px rgba(120,208,143,.06), 0 1px 0 rgba(255,255,255,.03) inset';
+    c.style.transition = 'transform .6s cubic-bezier(.25,.1,.25,1), box-shadow .6s cubic-bezier(.25,.1,.25,1)';
+    glare.style.opacity = '0';
+    setTimeout(function(){ c.style.transition = 'transform .15s ease-out, box-shadow .15s ease-out' }, 600);
+  });
+})();
+</script>
+</body>
+</html>

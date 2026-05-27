@@ -1,4 +1,4 @@
-import type { NetworkTruthResult, MemoryStutterResult, ScanResult, TFunction } from './types'
+import type { NetworkTruthResult, MemoryStutterResult, TFunction } from './types'
 import { processAllowlist, vendorGuidance, safetyRules, workflowSteps } from '../data'
 import { translatePhrase } from '../i18n'
 import type { Language } from '../i18n'
@@ -143,7 +143,7 @@ export function VendorIntelPanel({ t, language, activeGame }: {
         </div>
       </div>
       <div className="safety-list">
-        {vendorGuidance[activeGame].map((item) => (
+        {(vendorGuidance[activeGame] ?? vendorGuidance.Valorant).map((item) => (
           <div className="intel-row" key={`${activeGame}-${item.label}`}>
             <div>
               <strong>{item.label}</strong>

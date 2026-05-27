@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import type {
   BenchmarkResult,
   BottleneckResult,
@@ -12,7 +12,8 @@ import type {
   Receipt,
   ScanResult,
 } from '../engine'
-import type { GameKey, Language } from '../data'
+import type { GameKey } from '../data'
+import type { Language } from '../i18n'
 
 export type {
   BenchmarkResult,
@@ -66,4 +67,11 @@ export interface AppActions {
   setSelectedReceipt: (receipt: Receipt | null) => void
 }
 
-export type TFunction = (value: string | number | null | undefined) => string
+export type TFunction = Record<string, string>
+
+export function mapLog(log: Array<{ ts: number; msg: string }>): Array<{ label: string; time: string }> {
+  return log.map((entry) => ({
+    label: entry.msg,
+    time: new Date(entry.ts).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' }),
+  }))
+}

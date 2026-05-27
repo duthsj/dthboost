@@ -3,13 +3,15 @@ export type RiskLevel = 'Safe' | 'Measured' | 'Advanced' | 'Lab' | 'Blocked'
 
 export const navItems = [
   'Dashboard',
+  'Optimize',
+  'History',
+  'Settings',
   'Games',
-  'Benchmark',
-  'Session Boost',
-  'Tweaks',
   'Network',
-  'Reports',
   'Safety',
+  'Tweaks',
+  'Session',
+  'Reports',
 ]
 
 export const games: Record<
@@ -172,34 +174,26 @@ export const games: Record<
 }
 
 export const tweakPlan = [
-  {
-    id: 'power-plan',
-    title: 'Temporary power plan',
-    copy: 'Restore on game exit',
-    receipt: 'powercfg: capture current active plan',
-    enabled: true,
-  },
-  {
-    id: 'overlay-audit',
-    title: 'Overlay audit',
-    copy: 'Steam, Discord, capture tools',
-    receipt: 'process: audit overlay allowlist',
-    enabled: true,
-  },
-  {
-    id: 'mmcss',
-    title: 'MMCSS Games profile',
-    copy: 'Measured scheduler tweak',
-    receipt: 'registry: backup Multimedia\\SystemProfile',
-    enabled: false,
-  },
-  {
-    id: 'hags',
-    title: 'HAGS A/B test',
-    copy: 'Requires restart if changed',
-    receipt: 'registry: queue HwSchMode benchmark',
-    enabled: false,
-  },
+  { id: 'game-mode', title: 'Game Mode ON', copy: 'Prioritizes CPU for gaming', receipt: 'registry: GameBar\\AutoGameModeEnabled', enabled: true, risk: 'Safe' as const },
+  { id: 'power-plan', title: 'High Performance power plan', copy: 'Prevents CPU throttling during matches', receipt: 'powercfg /setactive high-perf-guid', enabled: true, risk: 'Safe' as const },
+  { id: 'gpu-pref', title: 'GPU preference (force dGPU)', copy: 'Forces dedicated GPU for game executable', receipt: 'registry: DirectX\\UserGpuPreferences', enabled: true, risk: 'Safe' as const },
+  { id: 'gamedvr', title: 'GameDVR / background recording OFF', copy: 'Frees GPU encoder — proven +3-8% FPS', receipt: 'registry: GameDVR\\AppCaptureEnabled=0', enabled: true, risk: 'Safe' as const },
+  { id: 'fullscreen-opt', title: 'Fullscreen optimizations OFF', copy: 'Reduces input lag on borderless/windowed modes', receipt: 'registry: GameConfigStore', enabled: true, risk: 'Measured' as const },
+  { id: 'gamebar', title: 'Game Bar tips & widgets OFF', copy: 'Removes overlay overhead and distractions', receipt: 'registry: GameBar\\ShowStartupPanel=0', enabled: true, risk: 'Safe' as const },
+  { id: 'usb-suspend', title: 'USB Selective Suspend OFF', copy: 'Prevents input device inconsistency', receipt: 'powercfg: USB suspend setting', enabled: true, risk: 'Safe' as const },
+  { id: 'pcie-link', title: 'PCIe Link State Power Mgmt OFF', copy: 'Prevents GPU micro-stutter from PCIe power saving', receipt: 'powercfg: PCIe ASPM setting', enabled: true, risk: 'Measured' as const },
+  { id: 'core-parking', title: 'Core Parking OFF', copy: 'All CPU cores active — proven +5-10% 1% lows', receipt: 'powercfg: core parking index = 100', enabled: true, risk: 'Measured' as const },
+  { id: 'cpu-priority', title: 'CPU Priority High for game', copy: 'Gives game process highest CPU scheduling', receipt: 'wmic: setpriority 128', enabled: true, risk: 'Safe' as const },
+  { id: 'standby-clean', title: 'Standby list cleaner', copy: 'Clears RAM standby cache — reduces stutter on <32GB', receipt: 'powershell: GC collect + EmptyWorkingSet', enabled: true, risk: 'Measured' as const },
+  { id: 'network-throttle', title: 'Network Throttling Index OFF', copy: 'Maximizes network bandwidth for gaming', receipt: 'registry: SystemProfile\\SystemResponsiveness=0', enabled: true, risk: 'Measured' as const },
+  { id: 'tcp-nodelay', title: 'TCP NoDelay + LSO OFF (Nagle)', copy: 'Reduces network latency 2-5ms', receipt: 'registry: MSMQ\\TCPNoDelay + NetAdapter LSO', enabled: true, risk: 'Measured' as const },
+  { id: 'mmcss', title: 'MMCSS Games scheduling priority', copy: 'Audio/GPU thread priority boost for gaming', receipt: 'registry: Multimedia\\SystemProfile\\Tasks\\Games', enabled: true, risk: 'Measured' as const },
+  { id: 'timer-res', title: 'Timer resolution 0.5ms', copy: 'Windows checks input 30x more often than default', receipt: 'NtSetTimerResolution(5000)', enabled: true, risk: 'Measured' as const },
+  { id: 'gpu-max', title: 'Force GPU max clocks (NVIDIA)', copy: 'Prevents GPU clock drops during gameplay', receipt: 'registry: GPU PowerMizer PerfLevelSrc', enabled: false, risk: 'Measured' as const },
+  { id: 'gpu-amd', title: 'Force GPU max clocks (AMD)', copy: 'Enables GPU overdrive for consistent clocks', receipt: 'registry: GPU PP_SclkOverdriveGrid', enabled: false, risk: 'Measured' as const },
+  { id: 'defender-excl', title: 'Defender exclusion for game folder', copy: 'Stops Windows Defender from scanning game files during play', receipt: 'Add-MpPreference -ExclusionPath', enabled: true, risk: 'Measured' as const },
+  { id: 'spectre', title: 'Spectre/Meltdown mitigations OFF', copy: 'Regains 3-10% CPU perf on Intel — reboot required', receipt: 'registry: Memory Management\\FeatureSettings', enabled: false, risk: 'Advanced' as const },
+  { id: 'msi-mode', title: 'MSI Mode + Interrupt Moderation OFF', copy: 'Reduces DPC latency and input lag — reboot required', receipt: 'registry: PCI MSISupported + NetAdapter', enabled: false, risk: 'Advanced' as const },
 ]
 
 export const safetyRules: Array<{ label: string; risk: RiskLevel }> = [
