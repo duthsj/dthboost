@@ -415,187 +415,34 @@ export async function runEngineCommand(
   }
 
   if (command === 'frametime_doctor') {
-    const p99 = game === 'CS2' ? 18.6 : game === 'Fortnite' ? 16.8 : 12.4
     return {
-      status: 'benchmark-ready',
-      message: 'Frametime Doctor completed',
-      receipts: [
-        receipt(
-          command,
-          'Frametime diagnosis',
-          'Safe',
-          'Metrics',
-          `${gameProcesses[game]} PresentMon p95/p99/0.1 low`,
-          'Untested',
-          'Frame pacing report ready',
-          'No system change applied',
-        ),
-      ],
-      frametime: {
-        framePacingScore: game === 'CS2' ? 61 : game === 'Fortnite' ? 68 : 84,
-        p95FrameTime: game === 'CS2' ? 10.9 : game === 'Fortnite' ? 11.8 : 8.7,
-        p99FrameTime: p99,
-        pointOneLow: game === 'CS2' ? 118 : game === 'Fortnite' ? 104 : 162,
-        tearRisk: game === 'CS2' ? 'High' : game === 'Fortnite' ? 'Medium' : 'Low',
-        capAdvice:
-          game === 'CS2'
-            ? 'Test capped, uncapped and VRR paths. Keep the one with best p99, not highest average FPS.'
-            : game === 'Fortnite'
-              ? 'Test DX12 shader-prepared run against Performance Mode before changing render path.'
-              : 'Keep Reflex or Anti-Lag path measured and avoid uncapped FPS if frame pacing worsens.',
-        diagnosis: game === 'CS2' ? 'False high FPS' : game === 'Fortnite' ? 'Frame pacing issue' : 'Smooth',
-      },
+      status: 'idle',
+      message: 'Frametime Doctor (browser mock — real data requires desktop app + benchmark)',
+      receipts: [receipt(command, 'Frametime diagnosis', 'Measured', 'Metrics', 'PresentMon CSV', 'Browser mock', 'Run in desktop app', 'No system change', false, false)],
     }
   }
 
   if (command === 'input_path_audit') {
     return {
-      status: 'benchmark-ready',
-      message: 'Input Path Audit completed',
-      receipts: [
-        receipt(
-          command,
-          'Input path audit',
-          'Safe',
-          'Metrics',
-          'mouse polling, overlays, GameDVR, USB power',
-          'Untested',
-          'Input path report ready',
-          'No system change applied',
-        ),
-      ],
-      inputPath: {
-        pollingRate: game === 'Valorant' ? '4000 Hz detected' : '1000 Hz assumed',
-        rawInputAdvice:
-          game === 'Valorant'
-            ? 'If using high polling rate, test Valorant Raw Input Buffer ON vs OFF.'
-            : 'Keep mouse polling stable; do not change input stack during benchmark.',
-        overlayRisk: game === 'Valorant' ? 'High' : 'Medium',
-        gameDvrState: 'Enabled',
-        usbPowerSaving: 'Unknown',
-        recommendation:
-          game === 'Valorant'
-            ? 'Audit Discord overlay, Xbox captures and high polling rate before registry tweaks.'
-            : 'Disable capture overlays for one A/B run and keep only if p99 improves.',
-      },
+      status: 'idle',
+      message: 'Input Path Audit (browser mock — real data requires desktop app)',
+      receipts: [receipt(command, 'Input path audit', 'Measured', 'Metrics', 'Mouse/overlays/GameDVR/USB', 'Browser mock', 'Run in desktop app', 'No system change', false, false)],
     }
   }
 
   if (command === 'bottleneck_classifier') {
-    const primary =
-      game === 'Fortnite' ? 'GPU bound' : game === 'CS2' ? 'Display pacing' : 'CPU bound'
     return {
-      status: 'benchmark-ready',
-      message: 'Bottleneck classification completed',
-      receipts: [
-        receipt(
-          command,
-          'Bottleneck classifier',
-          'Safe',
-          'Metrics',
-          'PresentMon + scan + memory + network signals',
-          'Untested',
-          'Bottleneck report ready',
-          'No system change applied',
-        ),
-      ],
-      bottleneck: {
-        primary,
-        confidence: game === 'CS2' ? 76 : 82,
-        evidence:
-          game === 'CS2'
-            ? ['High average FPS', 'p99 spikes', 'VRR/refresh path likely involved']
-            : game === 'Fortnite'
-              ? ['GPU busy above 90%', 'p99 spikes during scene changes', 'shader/cache path should be tested']
-              : ['CPU wait visible', 'overlays present', 'input path needs audit'],
-        nextTest:
-          game === 'CS2'
-            ? 'Run CS2 Smoothness Lab with FPS cap and VRR combinations.'
-            : game === 'Fortnite'
-              ? 'Run Fortnite Stutter Lab with renderer and shader cache checks.'
-              : 'Run Valorant Input Path Audit before scheduler tweaks.',
-      },
+      status: 'idle',
+      message: 'Bottleneck classification (browser mock — real data requires desktop app + benchmark)',
+      receipts: [receipt(command, 'Bottleneck classifier', 'Measured', 'Metrics', 'PresentMon + WMI + DPC', 'Browser mock', 'Run in desktop app', 'No system change', false, false)],
     }
   }
 
   if (command === 'game_smoothness_lab') {
     return {
-      status: 'benchmark-ready',
-      message: `${game} Smoothness Lab completed`,
-      receipts: [
-        receipt(
-          command,
-          `${game} smoothness lab`,
-          'Measured',
-          'Metrics',
-          `${gameProcesses[game]} game-specific test matrix`,
-          'Untested',
-          'Game lab recommendations ready',
-          'No system change applied',
-        ),
-      ],
-      gameLab: {
-        labName:
-          game === 'Valorant'
-            ? 'Valorant Input and Overlay Lab'
-            : game === 'CS2'
-              ? 'CS2 Smoothness Lab'
-              : 'Fortnite Stutter Lab',
-        tests:
-          game === 'Valorant'
-            ? [
-                {
-                  name: 'Raw Input Buffer',
-                  status: 'Needs test',
-                  recommendation: 'A/B test ON vs OFF with current mouse polling rate.',
-                },
-                {
-                  name: 'Discord overlay',
-                  status: 'Ready',
-                  recommendation: 'Disable overlay for one measured run.',
-                },
-                {
-                  name: 'GameDVR captures',
-                  status: 'Needs test',
-                  recommendation: 'Disable only if p99 or stutter count improves.',
-                },
-              ]
-            : game === 'CS2'
-              ? [
-                  {
-                    name: 'FPS cap matrix',
-                    status: 'Needs test',
-                    recommendation: 'Compare uncapped, refresh cap and refresh plus margin.',
-                  },
-                  {
-                    name: 'VRR path',
-                    status: 'Needs test',
-                    recommendation: 'Compare G-Sync/FreeSync path using p99, not average FPS.',
-                  },
-                  {
-                    name: 'Core affinity',
-                    status: 'Advanced',
-                    recommendation: 'A/B test Core 0 exclusion only as Advanced.',
-                  },
-                ]
-              : [
-                  {
-                    name: 'Renderer path',
-                    status: 'Needs test',
-                    recommendation: 'Compare DX12 shader-prepared run vs Performance Mode.',
-                  },
-                  {
-                    name: 'Shader cache',
-                    status: 'Ready',
-                    recommendation: 'Clean only when stutter count suggests cache pressure.',
-                  },
-                  {
-                    name: 'Frame generation',
-                    status: 'Advanced',
-                    recommendation: 'Avoid as competitive latency boost unless measured.',
-                  },
-                ],
-      },
+      status: 'idle',
+      message: `${game} Smoothness Lab (browser mock — real data requires desktop app + benchmark)`,
+      receipts: [receipt(command, `${game} smoothness lab`, 'Measured', 'Metrics', 'System state', 'Browser mock', 'Run in desktop app', 'No system change', false, false)],
     }
   }
 

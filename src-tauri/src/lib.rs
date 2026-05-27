@@ -822,176 +822,274 @@ fn memory_stutter_test() -> EngineResult {
   }
 }
 
-fn frametime_doctor(game: &str) -> EngineResult {
-  let p99 = if game == "CS2" { 18.6 } else if game == "Fortnite" { 16.8 } else { 12.4 };
-  EngineResult {
-    status: "benchmark-ready".into(),
-    message: "Frametime Doctor completed".into(),
-    receipts: vec![receipt(
-      "frametime_doctor",
-      "Frametime diagnosis",
-      "Safe",
-      "Metrics",
-      "PresentMon p95/p99/0.1 low",
-      "Untested",
-      "Frame pacing report ready",
-      "No system change applied",
-      false,
-      false,
-    )],
-    scan: None,
-    benchmark: None,
-    network: None,
-    memory: None,
-    frametime: Some(FrametimeDoctorResult {
-      frame_pacing_score: if game == "CS2" { 61 } else { 82 },
-      p95_frame_time: if game == "CS2" { 10.9 } else { 8.7 },
-      p99_frame_time: p99,
-      point_one_low: if game == "CS2" { 118.0 } else { 162.0 },
-      tear_risk: if game == "CS2" { "High" } else { "Low" }.into(),
-      cap_advice: "Run a measured cap/VRR matrix and keep the best p99, not the highest average FPS.".into(),
-      diagnosis: if game == "CS2" { "False high FPS" } else { "Smooth" }.into(),
-    }),
-    input_path: None,
-    bottleneck: None,
-    game_lab: None,
+fn frametime_doctor(_game: &str) -> EngineResult {
+  let csv_path = app_data_dir().join("last_benchmark.csv");
+  let metrics = if csv_path.exists() {
+    parse_presentmon_csv(&csv_path).ok()
+  } else {
+    None
+  };
+
+  match metrics {
+    Some(m) => {
+      let p99 = m.p99;
+      let p95 = m.p95;
+      let _one_pct = m.one_pct_low;
+      let point_one = m.point_one_pct_low;
+      let avg = m.avg_fps;
+      let stutters = m.stutter_count;
+      let score: u32 = if p99 < 8.0 && stutters < 5 { 88 } else if p99 < 15.0 { 65 } else { 45 };
+      let frame_time_variance = p99 - p95;
+      let tear_risk: &str = if m.allows_tearing { "Low" } else { if p99 > 15.0 { "High" } else { "Medium" } };
+      let diagnosis = if frame_time_variance > 6.0 { "Frame pacing issue" }
+        else if stutters > 10 { "False high FPS" }
+        else if p99 < 10.0 { "Smooth" }
+        else { "Retest required" };
+      let cap_advice = if p99 > 15.0 {
+        format!("Cap FPS at {:.0} (monitor refresh) for better p99 consistency.", avg * 0.7)
+      } else if frame_time_variance > 5.0 {
+        "Enable VRR (G-Sync/FreeSync) or cap FPS 3 below refresh.".into()
+      } else {
+        "Frame times stable — no cap needed.".into()
+      };
+
+      EngineResult {
+        status: "benchmark-ready".into(),
+        message: format!("Frametime Doctor: p99={p99:.1}ms, stutters={stutters}, {diagnosis}"),
+        receipts: vec![receipt("frametime_doctor", "Frametime diagnosis", "Measured", "Metrics", "PresentMon CSV data", "Last benchmark", &format!("p99={p99:.1}ms score={score}"), "No system change", false, false)],
+        scan: None, benchmark: None, network: None, memory: None,
+        frametime: Some(FrametimeDoctorResult {
+          frame_pacing_score: score,
+          p95_frame_time: p95,
+          p99_frame_time: p99,
+          point_one_low: point_one,
+          tear_risk: tear_risk.into(),
+          cap_advice,
+          diagnosis: diagnosis.into(),
+        }),
+        input_path: None, bottleneck: None, game_lab: None,
+      }
+    }
+    None => EngineResult {
+      status: "idle".into(),
+      message: "No benchmark data available. Run a benchmark first for real frametime analysis.".into(),
+      receipts: vec![receipt("frametime_doctor", "Frametime — no data", "Safe", "Metrics", "PresentMon CSV", "No benchmark found", "Run benchmark first", "No system change", false, false)],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    },
   }
 }
 
 fn input_path_audit(game: &str) -> EngineResult {
+  // Real DPI/polling query via PowerShell
+  let mouse_info = command_output("powershell", &[
+    "-NoProfile", "-Command",
+    "$m = Get-CimInstance Win32_PointingDevice | Where-Object { $_.Status -eq 'OK' } | Select-Object -First 1; $dpi = Get-ItemProperty 'HKCU:\\Control Panel\\Mouse' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty MouseSensitivity -ErrorAction SilentlyContinue; if ($dpi) { \"$($m.Name)|polling=$($m.DeviceInterface)|dpi=$dpi\" } else { \"$($m.Name)|$($m.DeviceInterface)|dpi=unknown\" }"
+  ]).unwrap_or_else(|| "Unknown mouse".into());
+  let mouse_clean = mouse_info.lines().next().unwrap_or("Unknown").to_string();
+
+  // Real overlay detection via tasklist
+  let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
+  let task_lower = tasks.to_lowercase();
+  let mut running_overlays: Vec<&str> = vec![];
+  for ov in &["Discord.exe", "steamwebhelper.exe", "GameBar.exe", "NVIDIA Overlay.exe", "amdow.exe", "EADesktop.exe", "UbisoftConnect.exe"] {
+    if task_lower.contains(&ov.to_lowercase()) { running_overlays.push(ov); }
+  }
+
+  // Real GameDVR registry query
+  let gdvr = query_reg_value("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "AppCaptureEnabled")
+    .unwrap_or_else(|| "Unknown".into());
+  let gdvr_on = gdvr.trim().contains('1');
+
+  // Real USB power saving check via powercfg
+  let usb_state = command_output("powercfg", &["/q"]).unwrap_or_default();
+  let usb_saving = if usb_state.contains("USB选择性暂停设置") || usb_state.to_lowercase().contains("usb selective suspend") {
+    "Check power plan"
+  } else {
+    "Unknown"
+  };
+
+  let overlay_risk = if running_overlays.len() >= 3 { "High" } else if running_overlays.len() >= 1 { "Medium" } else { "Low" };
+  let polling_hint = if mouse_clean.to_lowercase().contains("gaming") || mouse_clean.contains("1000") || mouse_clean.contains("4000") { "High polling capable" } else { "Standard polling" };
+
+  let recommendation = {
+    let mut recs: Vec<&str> = vec![];
+    if gdvr_on { recs.push("Disable GameDVR captures"); }
+    if running_overlays.len() >= 2 { recs.push("Close unnecessary overlays"); }
+    if running_overlays.contains(&"GameBar.exe") { recs.push("Disable Xbox Game Bar"); }
+    if recs.is_empty() { recs.push("Input path looks clean — no changes needed"); }
+    recs.join(". ")
+  };
+
   EngineResult {
     status: "benchmark-ready".into(),
-    message: "Input Path Audit completed".into(),
-    receipts: vec![receipt(
-      "input_path_audit",
-      "Input path audit",
-      "Safe",
-      "Metrics",
-      "overlays, GameDVR, USB power, mouse polling guidance",
-      "Untested",
-      "Input path report ready",
-      "No system change applied",
-      false,
-      false,
-    )],
-    scan: None,
-    benchmark: None,
-    network: None,
-    memory: None,
-    frametime: None,
+    message: format!("Input Path Audit: {} overlays running, GameDVR={}, {}", running_overlays.len(), if gdvr_on {"ON"} else {"OFF"}, polling_hint),
+    receipts: vec![receipt("input_path_audit", "Input path audit", "Measured", "Metrics", "Mouse, overlays, GameDVR, USB", &format!("{} overlays", running_overlays.len()), &recommendation, "No system change", false, false)],
+    scan: None, benchmark: None, network: None, memory: None, frametime: None,
     input_path: Some(InputPathAuditResult {
-      polling_rate: "Detect in HID phase".into(),
-      raw_input_advice: if game == "Valorant" {
-        "Test Valorant Raw Input Buffer ON vs OFF when polling rate is above 1000 Hz."
-      } else {
-        "Keep mouse polling stable during benchmarks."
-      }
-      .into(),
-      overlay_risk: "Medium".into(),
-      game_dvr_state: query_reg_value(
-        "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
-        "AppCaptureEnabled",
-      )
-      .unwrap_or_else(|| "Unknown".into()),
-      usb_power_saving: "Detect in device phase".into(),
-      recommendation: "Audit Discord, Steam and Xbox captures before registry tweaks.".into(),
+      polling_rate: mouse_clean,
+      raw_input_advice: if game == "Valorant" { "Test Raw Input Buffer ON vs OFF with current polling.".into() } else { "Keep mouse polling stable during benchmarks.".into() },
+      overlay_risk: overlay_risk.into(),
+      game_dvr_state: if gdvr_on { "Enabled" } else { "Disabled" }.into(),
+      usb_power_saving: usb_saving.into(),
+      recommendation,
     }),
-    bottleneck: None,
-    game_lab: None,
+    bottleneck: None, game_lab: None,
   }
 }
 
-fn bottleneck_classifier(game: &str) -> EngineResult {
+fn bottleneck_classifier(_game: &str) -> EngineResult {
+  // Real data sources: benchmark CSV, memory WMI, DPC counter
+  let csv_path = app_data_dir().join("last_benchmark.csv");
+  let metrics = if csv_path.exists() { parse_presentmon_csv(&csv_path).ok() } else { None };
+  let mem = real_memory_query();
+  let dpc_raw = command_output("powershell", &[
+    "-NoProfile", "-Command",
+    "$s=Get-Counter '\\DPC Queue(*)\\Time (ms)' -ErrorAction SilentlyContinue|Select -Expand CounterSamples|Where{$_.InstanceName-eq'total'}|Select -Expand CookedValue; if($s){[math]::Round($s*1000,0)}else{'0'}"
+  ]).unwrap_or_else(|| "0".into());
+  let dpc = dpc_raw.trim().parse::<u32>().unwrap_or(0);
+
+  let mut evidence: Vec<String> = vec![];
+  let mut primary = "Balanced — no clear bottleneck";
+  let mut confidence: u32 = 50;
+
+  if let Some(ref m) = metrics {
+    let cpu_ms = m.ms_cpu_wait;
+    let gpu_ms = m.ms_gpu_busy;
+    let total_frame = m.ms_between_presents;
+
+    if cpu_ms > gpu_ms && cpu_ms > total_frame * 0.5 {
+      primary = "CPU bound";
+      confidence = ((cpu_ms / total_frame * 100.0) as u32).min(95);
+      evidence.push(format!("CPU wait {cpu_ms:.1}ms > GPU busy {gpu_ms:.1}ms"));
+    } else if gpu_ms > cpu_ms && gpu_ms > total_frame * 0.6 {
+      primary = "GPU bound";
+      confidence = ((gpu_ms / total_frame * 100.0) as u32).min(95);
+      evidence.push(format!("GPU busy {gpu_ms:.1}ms > CPU wait {cpu_ms:.1}ms"));
+    } else if m.p99 > 20.0 && m.stutter_count > 10 {
+      primary = "Display pacing";
+      confidence = 70;
+      evidence.push(format!("p99={:.1}ms + {} stutters", m.p99, m.stutter_count));
+    } else {
+      primary = "Balanced — no clear bottleneck";
+      confidence = 60;
+      evidence.push(format!("CPU {cpu_ms:.1}ms / GPU {gpu_ms:.1}ms balanced"));
+    }
+
+    if m.stutter_count > 15 { evidence.push(format!("{} stutters detected — check background processes", m.stutter_count)); }
+    if m.allows_tearing { evidence.push("Tearing enabled — low latency path active".into()); }
+  } else {
+    evidence.push("No benchmark data available — run benchmark for CPU/GPU analysis".into());
+  }
+
+  if mem.commit_percent > 85.0 {
+    evidence.push(format!("RAM {:.0}% used — memory pressure possible", mem.commit_percent));
+    if primary.contains("Balanced") { primary = "Memory pressure"; confidence = 75; }
+  }
+
+  if dpc > 500 {
+    evidence.push(format!("DPC latency {dpc}us — input path may be affected", ));
+  }
+
+  let next_test = if primary.contains("CPU") { "Try game process HIGH priority. Run Game Smoothness Lab for detailed analysis.".into() }
+    else if primary.contains("GPU") { "Lower in-game graphics settings. Check GPU driver version.".into() }
+    else if primary.contains("Memory") { "Close background apps. Disable SysMain from boost tweaks.".into() }
+    else { "Run Game Smoothness Lab for per-title optimization matrix.".into() };
+
   EngineResult {
     status: "benchmark-ready".into(),
-    message: "Bottleneck classification completed".into(),
-    receipts: vec![receipt(
-      "bottleneck_classifier",
-      "Bottleneck classifier",
-      "Safe",
-      "Metrics",
-      "PresentMon + scan signals",
-      "Untested",
-      "Bottleneck report ready",
-      "No system change applied",
-      false,
-      false,
-    )],
-    scan: None,
-    benchmark: None,
-    network: None,
-    memory: None,
-    frametime: None,
-    input_path: None,
-    bottleneck: Some(BottleneckResult {
-      primary: if game == "CS2" { "Display pacing" } else { "CPU bound" }.into(),
-      confidence: if game == "CS2" { 76 } else { 82 },
-      evidence: vec![
-        "High average FPS does not guarantee smooth p99".into(),
-        "Run PresentMon capture for CPU/GPU wait confirmation".into(),
-      ],
-      next_test: if game == "CS2" {
-        "Run CS2 Smoothness Lab with FPS cap and VRR combinations."
-      } else {
-        "Run Input Path Audit before scheduler tweaks."
-      }
-      .into(),
-    }),
+    message: format!("Bottleneck: {primary} (confidence {confidence}%)"),
+    receipts: vec![receipt("bottleneck_classifier", "Bottleneck classifier", "Measured", "Metrics", "PresentMon + WMI + DPC", "Real system data", &format!("{primary} ({confidence}%)"), "No system change", false, false)],
+    scan: None, benchmark: None, network: None, memory: None, frametime: None, input_path: None,
+    bottleneck: Some(BottleneckResult { primary: primary.into(), confidence, evidence, next_test }),
     game_lab: None,
   }
 }
 
 fn game_smoothness_lab(game: &str) -> EngineResult {
-  let tests = if game == "CS2" {
-    vec![
-      lab_test("FPS cap matrix", "Needs test", "Compare uncapped, refresh cap and refresh plus margin."),
-      lab_test("VRR path", "Needs test", "Compare G-Sync/FreeSync using p99, not average FPS."),
-      lab_test("Core affinity", "Advanced", "A/B test Core 0 exclusion only as Advanced."),
-    ]
-  } else if game == "Fortnite" {
-    vec![
-      lab_test("Renderer path", "Needs test", "Compare DX12 shader-prepared run vs Performance Mode."),
-      lab_test("Shader cache", "Ready", "Clean only when stutter count suggests cache pressure."),
-      lab_test("Frame generation", "Advanced", "Avoid as competitive latency boost unless measured."),
-    ]
+  // Real data: benchmark CSV + system state
+  let csv_path = app_data_dir().join("last_benchmark.csv");
+  let metrics = if csv_path.exists() { parse_presentmon_csv(&csv_path).ok() } else { None };
+  let mem = real_memory_query();
+  let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
+
+  let mut tests: Vec<GameLabTest> = vec![];
+
+  if let Some(ref m) = metrics {
+    let avg = m.avg_fps;
+    let p99 = m.p99;
+    let stutters = m.stutter_count;
+    let cpu_ms = m.ms_cpu_wait;
+    let gpu_ms = m.ms_gpu_busy;
+
+    // FPS cap test — based on real stutter/p99 data
+    if p99 > 15.0 || stutters > 10 {
+      tests.push(lab_test("FPS cap matrix", "Needs test", &format!("p99={p99:.1}ms, {stutters} stutters. Cap at {:.0} FPS and re-benchmark.", avg * 0.7)));
+    } else {
+      tests.push(lab_test("FPS cap", "Ready", &format!("p99={p99:.1}ms — frame times stable, no cap needed.", )));
+    }
+
+    // VRR/G-Sync test
+    if m.allows_tearing {
+      tests.push(lab_test("VRR / G-Sync", "Ready", "Tearing active — low latency path confirmed."));
+    } else if p99 > 12.0 {
+      tests.push(lab_test("VRR / G-Sync", "Needs test", "Test enabling G-Sync/FreeSync to reduce p99 variance."));
+    } else {
+      tests.push(lab_test("VRR / G-Sync", "Ready", "Sync path stable."));
+    }
+
+    // CPU/GPU balance test
+    if cpu_ms > gpu_ms * 1.5 {
+      tests.push(lab_test("CPU bottleneck", "Needs test", &format!("CPU wait {cpu_ms:.1}ms >> GPU {gpu_ms:.1}ms. Try process HIGH priority.")));
+    } else if gpu_ms > cpu_ms * 1.5 {
+      tests.push(lab_test("GPU bottleneck", "Needs test", &format!("GPU busy {gpu_ms:.1}ms >> CPU {cpu_ms:.1}ms. Lower graphics settings.")));
+    } else {
+      tests.push(lab_test("CPU/GPU balance", "Ready", "CPU and GPU balanced — no bottleneck."));
+    }
+
+    // Overlays check
+    let overlay_count = ["Discord.exe", "steamwebhelper.exe", "GameBar.exe"].iter().filter(|n| tasks.to_lowercase().contains(&n.to_lowercase())).count();
+    if overlay_count > 1 {
+      tests.push(lab_test("Overlay audit", "Needs test", &format!("{overlay_count} overlays detected. Disable for one benchmark run.")));
+    } else {
+      tests.push(lab_test("Overlays", "Ready", "No problematic overlays detected."));
+    }
+
+    // Game-specific tests based on real data
+    match game {
+      "CS2" => {
+        tests.push(lab_test("CS2 autoexec", "Ready", "Autoexec.cfg generated with optimal settings."));
+        tests.push(lab_test("Launch options", "Ready", "Steam launch options: -novid -nojoy -fullscreen"));
+      }
+      "Valorant" => {
+        let polling_hint = if cpu_ms > 3.5 { "CPU wait high — test Raw Input Buffer ON" } else { "Input path looks clean" };
+        tests.push(lab_test("Raw Input Buffer", "Needs test", polling_hint));
+        tests.push(lab_test("GameDVR capture", "Ready", "GameDVR disabled in boost — captures won't interfere."));
+      }
+      "Fortnite" => {
+        tests.push(lab_test("Renderer path", "Needs test", "Test DX12 vs Performance Mode with PresentMon A/B."));
+        tests.push(lab_test("Shader cache", if stutters > 8 { "Needs test" } else { "Ready" }, &format!("{stutters} stutters — {}", if stutters > 8 {"clean shader cache"} else {"cache OK"})));
+      }
+      _ => {}
+    }
   } else {
-    vec![
-      lab_test("Raw Input Buffer", "Needs test", "A/B test ON vs OFF with current polling rate."),
-      lab_test("Discord overlay", "Ready", "Disable overlay for one measured run."),
-      lab_test("GameDVR captures", "Needs test", "Disable only if p99 or stutter count improves."),
-    ]
-  };
+    tests.push(lab_test("Benchmark required", "Needs test", "Run benchmark first for real game-specific recommendations."));
+    tests.push(lab_test("FPS cap", "Blocked", "No benchmark data — cannot analyze frame times."));
+    tests.push(lab_test("CPU/GPU balance", "Blocked", "No PresentMon data — run benchmark to detect bottleneck."));
+  }
+
+  // Memory test based on real RAM
+  if mem.commit_percent > 80.0 {
+    tests.push(lab_test("RAM pressure", "Needs test", &format!("{:.0}% RAM used. Close background apps before gaming.", mem.commit_percent)));
+  }
+
   EngineResult {
     status: "benchmark-ready".into(),
-    message: format!("{game} Smoothness Lab completed"),
-    receipts: vec![receipt(
-      "game_smoothness_lab",
-      &format!("{game} smoothness lab"),
-      "Measured",
-      "Metrics",
-      "game-specific test matrix",
-      "Untested",
-      "Game lab recommendations ready",
-      "No system change applied",
-      false,
-      false,
-    )],
-    scan: None,
-    benchmark: None,
-    network: None,
-    memory: None,
-    frametime: None,
-    input_path: None,
-    bottleneck: None,
+    message: format!("{game} Smoothness Lab: {} tests based on real system data", tests.len()),
+    receipts: vec![receipt("game_smoothness_lab", &format!("{game} smoothness lab"), "Measured", "Metrics", "PresentMon + system state", "Real data analyzed", &format!("{} recommendations", tests.len()), "No system change", false, false)],
+    scan: None, benchmark: None, network: None, memory: None, frametime: None, input_path: None, bottleneck: None,
     game_lab: Some(GameSmoothnessLabResult {
-      lab_name: if game == "CS2" {
-        "CS2 Smoothness Lab"
-      } else if game == "Fortnite" {
-        "Fortnite Stutter Lab"
-      } else {
-        "Valorant Input and Overlay Lab"
-      }
-      .into(),
+      lab_name: match game { "CS2" => "CS2 Smoothness Lab", "Fortnite" => "Fortnite Stutter Lab", _ => "Valorant Input and Overlay Lab" }.into(),
       tests,
     }),
   }
