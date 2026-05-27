@@ -80,6 +80,10 @@ export default function DashboardPage({
                   <p style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase' }}>1% Low</p>
                 </div>
                 <div style={{ textAlign: 'center' }}>
+                  <span style={{ fontSize: 28, fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#9d4de0' }}>{Math.round(benchmarkResult.pointZeroOnePercentLow ?? 0)}</span>
+                  <p style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase' }}>0.01% Low</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
                   <span style={{ fontSize: 28, fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--text)' }}>{benchmarkResult.stutterCount ?? 0}</span>
                   <p style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase' }}>Stutters</p>
                 </div>

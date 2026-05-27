@@ -68,7 +68,7 @@ export default function SettingsPage({ t: _t, language, busyCommand: _bc, autoBo
       </div>
 
       <div style={{ marginTop: 24, padding: 16, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <strong style={{ color: 'var(--text)', fontSize: 14 }}>DTHBoost v0.9.0</strong>
+        <strong style={{ color: 'var(--text)', fontSize: 14 }}>DTHBoost v1.0.0</strong>
         <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
           {es ? 'Optimizador competitivo gratuito y open source.' : 'Free and open source competitive gaming optimizer.'}
           <br />

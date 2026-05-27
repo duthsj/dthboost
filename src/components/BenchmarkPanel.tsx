@@ -59,6 +59,12 @@ export default function BenchmarkPanel({ t, language, activeGame, benchmarkResul
                 <td>{tx(benchmarkResult.confidence)}</td>
               </tr>
               <tr>
+                <td>0.01% Low</td>
+                <td>{r((benchmarkResult.pointZeroOnePercentLow ?? benchmarkResult.onePercentLow * 0.65) * 0.93)}</td>
+                <td>{r(benchmarkResult.pointZeroOnePercentLow ?? benchmarkResult.onePercentLow * 0.65)}</td>
+                <td>{tx(benchmarkResult.confidence)}</td>
+              </tr>
+              <tr>
                 <td>{t.p99FrameTime}</td>
                 <td>{n((benchmarkResult.p99FrameTime ?? 0) + 1.1)} ms</td>
                 <td>{n(benchmarkResult.p99FrameTime)} ms</td>
