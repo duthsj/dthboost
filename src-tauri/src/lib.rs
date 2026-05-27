@@ -5,6 +5,7 @@ use std::{
   io::{BufRead, BufReader},
   path::{Path, PathBuf},
   process::{Command, Stdio},
+  thread,
   time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -338,69 +339,71 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
   let gpu_target = format!("{path}\\{process}");
   let game_path_str = path.to_string();
   let gpu_vendor = detect_gpu_vendor();
+  let cpu_vendor = detect_cpu_vendor();
   let is_nvidia = gpu_vendor.contains("NVIDIA");
   let is_amd = gpu_vendor.contains("AMD");
+  let is_intel = cpu_vendor.contains("Intel");
 
-  // ── Safe Tier ──
-  // 1. Game Mode ON
+  // Capture before-values synchronously (fast registry reads)
   let (gm_before, gm_after) = apply_reg_dword("HKCU\\Software\\Microsoft\\GameBar", "AutoGameModeEnabled", "1");
-  // 2. Ultimate Performance power plan (hidden, better than High Performance)
-  // First try to enable it if not available, then activate it
-  let _ = cmd("powercfg").args(["-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
-  let _ = cmd("powercfg").args(["/setactive", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
-  // 3. GPU preference
-  let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "/v", &gpu_target, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f"]).output();
-  // 4. GameDVR OFF
   let (gdvr_before, gdvr_after) = apply_reg_dword("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "AppCaptureEnabled", "0");
-  let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "/v", "HistoricalCaptureEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
-  // 5. Fullscreen optimizations OFF
-  let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_Enabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
-  let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_FSEBehaviorMode", "/t", "REG_DWORD", "/d", "2", "/f"]).output();
-  // 6. Game Bar tips/widgets OFF
-  let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "ShowStartupPanel", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
-  let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "UseNexusForGameBarEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
-  // 7. USB Selective Suspend OFF (prevents input inconsistency)
-  let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "2a737441-1930-4402-8d77-b2bebba308a3", "48e6b7a6-50f5-4782-a5d4-53bb8f07e226", "0"]).output();
-  // 8. PCIe Link State Power Management OFF (prevents GPU micro-stutter)
-  let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "501a4d13-42af-4429-9fd1-a8218c268e20", "ee12f906-d277-404b-b6da-e5fa1a576df5", "0"]).output();
-  // 9. Core Parking OFF (all cores active during gaming)
-  let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "54533251-82be-4824-96c1-47b60b740d00", "0cc5b647-c1df-4637-891a-dec35c318583", "100"]).output();
-  // 10. CPU Priority High + Standby cleaner (fast, low risk)
-  let _ = cmd("powershell").args(["-NoProfile", "-Command", "[GC]::Collect(); [GC]::WaitForPendingFinalizers()"]).output();
-  // 11. Defender exclusion (separate PS call, may need admin)
-  let _ = cmd("powershell").args(["-NoProfile", "-Command", &format!("Add-MpPreference -ExclusionPath '{}' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionProcess '{}' -ErrorAction SilentlyContinue", path, process)]).output();
-  // 12. Network Throttling Index OFF (SystemResponsiveness = 0 for gaming)
-  let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
-  // 13. TCP NoDelay (Nagle OFF) — reduces network latency
-  let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\MSMQ\\Parameters", "/v", "TCPNoDelay", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
-  // 13. Network + MMCSS combined
-  let _ = cmd("powershell").args(["-NoProfile", "-Command", "Get-NetAdapter | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
-  // 14. MMCSS Games priority (reg)
-  let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "GPU Priority", "/t", "REG_DWORD", "/d", "8", "/f"]).output();
-  let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "Priority", "/t", "REG_DWORD", "/d", "6", "/f"]).output();
-  let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "Scheduling Category", "/t", "REG_SZ", "/d", "High", "/f"]).output();
-  // 15. Timer resolution 0.5ms
-  let _ = cmd("powershell").args(["-NoProfile", "-Command", "$c=@'\n[DllImport(\"ntdll.dll\")] public static extern int NtSetTimerResolution(int DesiredResolution, bool SetResolution, out int CurrentResolution);\n'@; Add-Type -MemberDefinition $c -Name W32 -Namespace T -ErrorAction SilentlyContinue; [T.W32]::NtSetTimerResolution(5000,$true,[ref]0)"]).output();
-  // 16. Force GPU max clocks (NVIDIA only)
-  if is_nvidia {
-    let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000", "/v", "PerfLevelSrc", "/t", "REG_DWORD", "/d", "0x3322", "/f"]).output();
-  }
-  // 17. Force GPU max clocks (AMD only)
-  if is_amd {
-    let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000", "/v", "PP_SclkOverdriveGrid", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
-  }
-  // 18. Defender exclusion → combined in PS block above
 
-  // ── Advanced Tier (needs admin + optional) ──
-  // 19. Disable Spectre/Meltdown mitigations (Intel CPUs only — AMD is not affected)
-  let is_intel = detect_cpu_vendor().contains("Intel");
-  if is_intel {
-    let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "/v", "FeatureSettingsOverride", "/t", "REG_DWORD", "/d", "3", "/f"]).output();
-    let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "/v", "FeatureSettingsOverrideMask", "/t", "REG_DWORD", "/d", "3", "/f"]).output();
-  }
-  // 20. MSI Mode + Interrupt Moderation combined
-  let _ = cmd("powershell").args(["-NoProfile", "-Command", "$adapters = Get-NetAdapter | Where-Object { $_.Name -match 'Ethernet|Wi-Fi' }; foreach ($a in $adapters) { Set-NetAdapterAdvancedProperty -Name $a.Name -DisplayName 'Interrupt Moderation' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
-  let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Enum\\PCI", "/v", "MSISupported", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
+  // Build command strings that will be used by threads
+  let gp = path.to_string();
+  let proc = process.to_string();
+  let gpu_tgt = gpu_target.clone();
+  let game_path = game_path_str.clone();
+
+  // Execute all tweaks in parallel across 4 threads
+  thread::scope(|s| {
+    // Thread A — Power plan + powercfg tweaks
+    s.spawn(|| {
+      let _ = cmd("powercfg").args(["-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
+      let _ = cmd("powercfg").args(["/setactive", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
+      let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "2a737441-1930-4402-8d77-b2bebba308a3", "48e6b7a6-50f5-4782-a5d4-53bb8f07e226", "0"]).output();
+      let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "501a4d13-42af-4429-9fd1-a8218c268e20", "ee12f906-d277-404b-b6da-e5fa1a576df5", "0"]).output();
+      let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "54533251-82be-4824-96c1-47b60b740d00", "0cc5b647-c1df-4637-891a-dec35c318583", "100"]).output();
+    });
+
+    // Thread B — Registry tweaks (HKCU + HKLM, no admin needed for HKCU)
+    s.spawn(|| {
+      let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "/v", &gpu_tgt, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "/v", "HistoricalCaptureEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_Enabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_FSEBehaviorMode", "/t", "REG_DWORD", "/d", "2", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "ShowStartupPanel", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "UseNexusForGameBarEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
+    });
+
+    // Thread C — Network + MMCSS + GPU registry tweaks (HKLM, may need admin)
+    s.spawn(|| {
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\MSMQ\\Parameters", "/v", "TCPNoDelay", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "GPU Priority", "/t", "REG_DWORD", "/d", "8", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "Priority", "/t", "REG_DWORD", "/d", "6", "/f"]).output();
+      let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "Scheduling Category", "/t", "REG_SZ", "/d", "High", "/f"]).output();
+      if is_nvidia {
+        let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000", "/v", "PerfLevelSrc", "/t", "REG_DWORD", "/d", "0x3322", "/f"]).output();
+      }
+      if is_amd {
+        let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000", "/v", "PP_SclkOverdriveGrid", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
+      }
+      if is_intel {
+        let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "/v", "FeatureSettingsOverride", "/t", "REG_DWORD", "/d", "3", "/f"]).output();
+        let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "/v", "FeatureSettingsOverrideMask", "/t", "REG_DWORD", "/d", "3", "/f"]).output();
+      }
+      let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Enum\\PCI", "/v", "MSISupported", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
+    });
+
+    // Thread D — All PowerShell commands (GC, Defender, Timer, Network adapters, MMCSS)
+    s.spawn(move || {
+      let _ = cmd("powershell").args(["-NoProfile", "-Command", "[GC]::Collect(); [GC]::WaitForPendingFinalizers()"]).output();
+      let _ = cmd("powershell").args(["-NoProfile", "-Command", &format!("Add-MpPreference -ExclusionPath '{}' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionProcess '{}' -ErrorAction SilentlyContinue", gp, proc)]).output();
+      let _ = cmd("powershell").args(["-NoProfile", "-Command", "Get-NetAdapter | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
+      let _ = cmd("powershell").args(["-NoProfile", "-Command", "$c=@'\n[DllImport(\"ntdll.dll\")] public static extern int NtSetTimerResolution(int DesiredResolution, bool SetResolution, out int CurrentResolution);\n'@; Add-Type -MemberDefinition $c -Name W32 -Namespace T -ErrorAction SilentlyContinue; [T.W32]::NtSetTimerResolution(5000,$true,[ref]0)"]).output();
+      let _ = cmd("powershell").args(["-NoProfile", "-Command", "$adapters = Get-NetAdapter | Where-Object { $_.Name -match 'Ethernet|Wi-Fi' }; foreach ($a in $adapters) { Set-NetAdapterAdvancedProperty -Name $a.Name -DisplayName 'Interrupt Moderation' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
+    });
+  });
 
   Ok(EngineResult {
     status: "boost-active".into(),
