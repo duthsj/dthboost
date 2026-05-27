@@ -204,13 +204,13 @@ struct Snapshot {
 #[tauri::command]
 fn run_engine_command(app: tauri::AppHandle, request: EngineRequest) -> Result<EngineResult, String> {
   match request.command.as_str() {
-    "scan" => Ok(scan(&request.game)),
+"scan" => Ok(scan(&request.game)),
     "snapshot" => snapshot(),
 "apply_safe_session_boost" => {
       let app_clone = app.clone();
       let game = request.game.clone();
       std::thread::spawn(move || {
-        let result = apply_safe_session_boost_sync(&game);
+        let result = apply_safe_session_boost_sync(&app_clone, &game);
         let _ = app_clone.emit("boost-complete", serde_json::json!({
           "success": result.is_ok(),
           "message": result.as_ref().map(|r| r.message.clone()).unwrap_or_else(|e| e.clone()),
@@ -247,8 +247,31 @@ fn run_engine_command(app: tauri::AppHandle, request: EngineRequest) -> Result<E
 }
 
 fn scan(game: &str) -> EngineResult {
+  // Single powershell call for ALL hardware info + GPU vendor + refresh rate
+  let hw_raw = command_output("powershell", &["-NoProfile", "-Command",
+    "$c=(Get-CimInstance Win32_Processor|Select -First 1).Name; $m=Get-CimInstance Win32_PhysicalMemory|Select -First 1; $ram='{0}GB {1}MHz'-f[math]::Round($m.Capacity/1GB),$m.Speed; $d=Get-PhysicalDisk|Select -First 1; $disk='{0} ({1})'-f$d.FriendlyName,$d.MediaType; $g=Get-CimInstance Win32_VideoController|Select -First 1; $gpu='{0}|{1}|{2}' -f$g.Name,$g.DriverVersion,$g.CurrentRefreshRate; \"$c|||$ram|||$disk|||$gpu\""
+  ]).unwrap_or_default();
+
+  let parts: Vec<&str> = hw_raw.trim().split("|||").collect();
+  let cpu = parts.first().unwrap_or(&"Unknown CPU").to_string();
+  let ram = parts.get(1).unwrap_or(&"Unknown RAM").to_string();
+  let disk = parts.get(2).unwrap_or(&"Unknown Disk").to_string();
+  let gpu_parts: Vec<&str> = parts.get(3).unwrap_or(&"Unknown|Unknown|0").split('|').collect();
+  let gpu_name = gpu_parts.first().unwrap_or(&"Unknown GPU").to_string();
+  let gpu_driver_ver = gpu_parts.get(1).unwrap_or(&"Unknown").to_string();
+  let refresh_hz = gpu_parts.get(2).unwrap_or(&"0").parse::<u32>().unwrap_or(0);
+
+  let gpu_driver_str = format!("{gpu_name} v{gpu_driver_ver}");
+  let gpu_driver = if gpu_driver_str.len() > 80 { format!("{}...", &gpu_driver_str[..77]) } else { gpu_driver_str };
+  let gpu_vendor: String = if gpu_name.to_lowercase().contains("nvidia") { "NVIDIA".into() }
+    else if gpu_name.to_lowercase().contains("amd") || gpu_name.to_lowercase().contains("radeon") { "AMD".into() }
+    else if gpu_name.to_lowercase().contains("intel") { "Intel".into() }
+    else { "Unknown".into() };
+  let refresh_rate = if refresh_hz > 0 { format!("{refresh_hz} Hz") } else { "Unknown".into() };
+
+  // Single call for tasklist (fast)
   let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
-  let hw = get_hardware_info();
+
   let overlays = ["Discord.exe", "steamwebhelper.exe", "GameBar.exe", "NVIDIA Overlay.exe"]
     .iter()
     .filter(|name| tasks.to_lowercase().contains(&name.to_lowercase()))
@@ -262,26 +285,22 @@ fn scan(game: &str) -> EngineResult {
     scan: Some(ScanResult {
       detected_games: game_processes()
         .iter()
-        .map(|(game, process, path)| DetectedGame {
-          game: (*game).into(),
+        .map(|(g, process, path)| DetectedGame {
+          game: (*g).into(),
           process: (*process).into(),
           path: (*path).into(),
           installed: Path::new(path).exists() || tasks.contains(process),
         })
         .collect(),
-      gpu_vendor: detect_gpu_vendor(),
-      refresh_rate: detect_refresh_rate(),
+      gpu_vendor,
+      refresh_rate,
       active_power_plan: active_power_plan(),
-      game_mode: query_reg_value(
-        "HKCU\\Software\\Microsoft\\GameBar",
-        "AutoGameModeEnabled",
-      )
-      .unwrap_or_else(|| "Unknown".into()),
+      game_mode: query_reg_value("HKCU\\Software\\Microsoft\\GameBar", "AutoGameModeEnabled").unwrap_or_else(|| "Unknown".into()),
       overlays,
-      cpu_model: hw.0,
-      ram_info: hw.1,
-      disk_info: hw.2,
-      gpu_driver: hw.3,
+      cpu_model: cpu,
+      ram_info: ram,
+      disk_info: disk,
+      gpu_driver,
     }),
     benchmark: None,
     network: None,
@@ -1358,12 +1377,14 @@ fn toggle_autostart() -> EngineResult {
 }
 
 fn get_hardware_info() -> (String, String, String, String) {
-  let cpu = command_output("powershell", &["-NoProfile", "-Command", "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"]).unwrap_or_else(|| "Unknown CPU".into());
-  let ram = command_output("powershell", &["-NoProfile", "-Command", "$m = Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1; \"{0}GB {1}MHz\" -f [math]::Round($m.Capacity/1GB), $m.Speed"]).unwrap_or_else(|| "Unknown RAM".into());
-  let disk = command_output("powershell", &["-NoProfile", "-Command", "$d = Get-PhysicalDisk | Select-Object -First 1; \"{0} ({1})\" -f $d.FriendlyName, $d.MediaType"]).unwrap_or_else(|| "Unknown Disk".into());
-  let driver_str = command_output("powershell", &["-NoProfile", "-Command", "$g = Get-CimInstance Win32_VideoController | Select-Object -First 1; \"{0} v{1}\" -f $g.Name, $g.DriverVersion"]).unwrap_or_else(|| "Unknown GPU".into());
+  let combined = command_output("powershell", &["-NoProfile", "-Command", "$c=(Get-CimInstance Win32_Processor|Select -First 1).Name;$m=Get-CimInstance Win32_PhysicalMemory|Select -First 1;$r='{0}GB {1}MHz'-f[math]::Round($m.Capacity/1GB),$m.Speed;$d=Get-PhysicalDisk|Select -First 1;$disk='{0} ({1})'-f$d.FriendlyName,$d.MediaType;$g=Get-CimInstance Win32_VideoController|Select -First 1;$gpu='{0} v{1}'-f$g.Name,$g.DriverVersion;\"$c|$r|$disk|$gpu\""]).unwrap_or_default();
+  let parts: Vec<&str> = combined.trim().split('|').collect();
+  let cpu = parts.first().unwrap_or(&"Unknown CPU").to_string();
+  let ram = parts.get(1).unwrap_or(&"Unknown RAM").to_string();
+  let disk = parts.get(2).unwrap_or(&"Unknown Disk").to_string();
+  let driver_str = parts.get(3).unwrap_or(&"Unknown GPU").to_string();
   let driver = if driver_str.len() > 80 { format!("{}...", &driver_str[..77]) } else { driver_str };
-  (cpu.trim().to_string(), ram.trim().to_string(), disk.trim().to_string(), driver)
+  (cpu, ram, disk, driver)
 }
 
 fn detect_refresh_rate() -> String {
