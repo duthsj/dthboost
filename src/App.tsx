@@ -172,25 +172,36 @@ function AppInner() {
     if (!onboardingDone) setShowOnboarding(true)
   }, [onboardingDone])
 
-  // Watch game process + auto-boost / auto-rollback (2s polling with WMI)
+  // Watch game process for auto-rollback (only when boosted)
   useEffect(() => {
-    if (sessionState !== 'boosted' && sessionState !== 'idle') return
+    if (sessionState !== 'boosted') return
     gameWasRunning.current = false
     const interval = setInterval(() => {
       if (busyRef.current) return
       runEngineCommand('watch_game', activeGame).then(result => {
         if (result.status === 'boost-active') {
           gameWasRunning.current = true
-          if (autoBoost && sessionState === 'idle' && !busyRef.current) {
-            optimizeRef.current()
-          }
         } else if (gameWasRunning.current && !busyRef.current) {
           rollbackRef.current('rollback_session')
         }
       }).catch(() => {})
     }, 2000)
     return () => clearInterval(interval)
-  }, [sessionState, activeGame, autoBoost])
+  }, [sessionState, activeGame])
+
+  // Auto-boost detection (only when autoBoost enabled + idle)
+  useEffect(() => {
+    if (!autoBoost || sessionState !== 'idle') return
+    const interval = setInterval(() => {
+      if (busyRef.current) return
+      runEngineCommand('watch_game', activeGame).then(result => {
+        if (result.status === 'boost-active' && !busyRef.current) {
+          optimizeRef.current()
+        }
+      }).catch(() => {})
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [autoBoost, sessionState, activeGame])
 
   const handleFinishOnboarding = useCallback(() => {
     setOnboardingDone(true)
