@@ -8,6 +8,7 @@ use std::{
   thread,
   time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use tauri::Emitter;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -201,11 +202,28 @@ struct Snapshot {
 }
 
 #[tauri::command]
-fn run_engine_command(request: EngineRequest) -> Result<EngineResult, String> {
+fn run_engine_command(app: tauri::AppHandle, request: EngineRequest) -> Result<EngineResult, String> {
   match request.command.as_str() {
     "scan" => Ok(scan(&request.game)),
     "snapshot" => snapshot(),
-    "apply_safe_session_boost" => apply_safe_session_boost(&request.game),
+"apply_safe_session_boost" => {
+      let app_clone = app.clone();
+      let game = request.game.clone();
+      std::thread::spawn(move || {
+        let result = apply_safe_session_boost_sync(&game);
+        let _ = app_clone.emit("boost-complete", serde_json::json!({
+          "success": result.is_ok(),
+          "message": result.as_ref().map(|r| r.message.clone()).unwrap_or_else(|e| e.clone()),
+        }));
+      });
+      Ok(EngineResult {
+        status: "boost-armed".into(),
+        message: "Boost started in background".into(),
+        receipts: vec![],
+        scan: None, benchmark: None, network: None, memory: None,
+        frametime: None, input_path: None, bottleneck: None, game_lab: None,
+      })
+    }
     "rollback_session" => rollback_session(),
     "benchmark" => Ok(benchmark(&request.game)),
     "network_truth" => Ok(network_truth()),
@@ -216,7 +234,7 @@ fn run_engine_command(request: EngineRequest) -> Result<EngineResult, String> {
     "game_smoothness_lab" => Ok(game_smoothness_lab(&request.game)),
     "close_background_apps" => Ok(close_background_apps()),
     "watch_game" => Ok(watch_game(&request.game)),
-	    "auto_boost_if_game" => Ok(auto_boost_if_game(&request.game)),
+	    "auto_boost_if_game" => Ok(auto_boost_if_game(&app, &request.game)),
     "install_presentmon" => Ok(install_presentmon()),
     "pre_warm_system" => Ok(pre_warm_system()),
     "check_gpu_driver" => Ok(check_gpu_driver()),
@@ -335,7 +353,7 @@ fn snapshot() -> Result<EngineResult, String> {
   })
 }
 
-fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
+fn apply_safe_session_boost_sync(app: &tauri::AppHandle, game: &str) -> Result<EngineResult, String> {
   let previous_plan = active_power_plan();
   let (process, path) = game_process_and_path(game);
   let gpu_target = format!("{path}\\{process}");
@@ -346,9 +364,13 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
   let is_amd = gpu_vendor.contains("AMD");
   let is_intel = cpu_vendor.contains("Intel");
 
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 5, "phase": "Detecting hardware..." }));
+
   // Capture before-values synchronously (fast registry reads)
   let (gm_before, gm_after) = apply_reg_dword("HKCU\\Software\\Microsoft\\GameBar", "AutoGameModeEnabled", "1");
   let (gdvr_before, gdvr_after) = apply_reg_dword("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "AppCaptureEnabled", "0");
+
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 10, "phase": "Power plan + CPU..." }));
 
   // Build command strings that will be used by threads
   let gp = path.to_string();
@@ -356,18 +378,21 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
   let gpu_tgt = gpu_target.clone();
   let game_path = game_path_str.clone();
 
-  // Execute all tweaks in parallel across 4 threads
-  // Each thread is wrapped in catch_unwind to prevent one panic from losing others
-  let _results = thread::scope(|s| {
-    let t1 = s.spawn(|| std::panic::catch_unwind(|| {
+  // Thread A — Power plan + powercfg tweaks
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 15, "phase": "Power profile..." }));
+  thread::scope(|s| {
+    s.spawn(|| std::panic::catch_unwind(|| {
       let _ = cmd("powercfg").args(["-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
       let _ = cmd("powercfg").args(["/setactive", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
       let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "2a737441-1930-4402-8d77-b2bebba308a3", "48e6b7a6-50f5-4782-a5d4-53bb8f07e226", "0"]).output();
       let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "501a4d13-42af-4429-9fd1-a8218c268e20", "ee12f906-d277-404b-b6da-e5fa1a576df5", "0"]).output();
       let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "54533251-82be-4824-96c1-47b60b740d00", "0cc5b647-c1df-4637-891a-dec35c318583", "100"]).output();
     }));
+  });
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 35, "phase": "GameDVR + overlays..." }));
 
-    let t2 = s.spawn(|| std::panic::catch_unwind(|| {
+  thread::scope(|s| {
+    s.spawn(|| std::panic::catch_unwind(|| {
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "/v", &gpu_tgt, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "/v", "HistoricalCaptureEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_Enabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
@@ -375,8 +400,11 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "ShowStartupPanel", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "UseNexusForGameBarEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
     }));
+  });
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 55, "phase": "Network + MMCSS..." }));
 
-    let t3 = s.spawn(|| std::panic::catch_unwind(|| {
+  thread::scope(|s| {
+    s.spawn(|| std::panic::catch_unwind(|| {
       let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\MSMQ\\Parameters", "/v", "TCPNoDelay", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "GPU Priority", "/t", "REG_DWORD", "/d", "8", "/f"]).output();
@@ -394,17 +422,19 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
       }
       let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Enum\\PCI", "/v", "MSISupported", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
     }));
+  });
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 75, "phase": "PowerShell tweaks..." }));
 
-    let t4 = s.spawn(|| std::panic::catch_unwind(move || {
+  thread::scope(|s| {
+    s.spawn(|| std::panic::catch_unwind(move || {
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "[GC]::Collect(); [GC]::WaitForPendingFinalizers()"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", &format!("Add-MpPreference -ExclusionPath '{}' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionProcess '{}' -ErrorAction SilentlyContinue", gp, proc)]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "Get-NetAdapter | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "$c=@'\n[DllImport(\"ntdll.dll\")] public static extern int NtSetTimerResolution(int DesiredResolution, bool SetResolution, out int CurrentResolution);\n'@; Add-Type -MemberDefinition $c -Name W32 -Namespace T -ErrorAction SilentlyContinue; [T.W32]::NtSetTimerResolution(5000,$true,[ref]0)"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "$adapters = Get-NetAdapter | Where-Object { $_.Name -match 'Ethernet|Wi-Fi' }; foreach ($a in $adapters) { Set-NetAdapterAdvancedProperty -Name $a.Name -DisplayName 'Interrupt Moderation' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
     }));
-
-    (t1.join(), t2.join(), t3.join(), t4.join())
   });
+  let _ = app.emit("boost-progress", serde_json::json!({ "pct": 100, "phase": "Done!" }));
 
   Ok(EngineResult {
     status: "boost-active".into(),
@@ -1131,7 +1161,7 @@ fn watch_game(game: &str) -> EngineResult {
   }
 }
 
-fn auto_boost_if_game(game: &str) -> EngineResult {
+fn auto_boost_if_game(app: &tauri::AppHandle, game: &str) -> EngineResult {
   let (process, _) = game_process_and_path(game);
   let wmi_check = command_output("powershell", &[
     "-NoProfile", "-Command",
@@ -1140,19 +1170,21 @@ fn auto_boost_if_game(game: &str) -> EngineResult {
   let running = wmi_check.trim().parse::<u32>().unwrap_or(0) > 0;
 
   if running {
-    match apply_safe_session_boost(game) {
-      Ok(mut result) => {
-        result.status = "boost-active".into();
-        result.message = format!("Auto-boost applied — {process} detected and optimized");
-        result
-      }
-      Err(_) => EngineResult {
-        status: "error".into(),
-        message: format!("Auto-boost failed for {process}"),
-        receipts: vec![],
-        scan: None, benchmark: None, network: None, memory: None,
-        frametime: None, input_path: None, bottleneck: None, game_lab: None,
-      },
+    let app_clone = app.clone();
+    let game_clone = game.to_string();
+    std::thread::spawn(move || {
+      let result = apply_safe_session_boost_sync(&app_clone, &game_clone);
+      let _ = app_clone.emit("boost-complete", serde_json::json!({
+        "success": result.is_ok(),
+        "message": result.as_ref().map(|r| r.message.clone()).unwrap_or_else(|e| e.clone()),
+      }));
+    });
+    EngineResult {
+      status: "boost-active".into(),
+      message: format!("Auto-boost triggered — {process} detected"),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
     }
   } else {
     EngineResult {
@@ -1164,6 +1196,7 @@ fn auto_boost_if_game(game: &str) -> EngineResult {
     }
   }
 }
+
 
 fn install_presentmon() -> EngineResult {
   let bin_dir = app_data_dir().join("bin");

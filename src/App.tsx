@@ -25,6 +25,7 @@ import OnboardingWizard from './components/OnboardingWizard'
 import { ToastProvider, useToast } from './components/Toast'
 import { saveBenchmark } from './components/BenchmarkHistory'
 import { playScanComplete, playBenchmarkComplete, playBoostActive, playRollback, playError } from './components/Sounds'
+import BoostProgress from './components/BoostProgress'
 
 type PlanItem = { id: string; title: string; copy: string; receipt: string; enabled: boolean; risk?: string }
 type LogEntry = { ts: number; msg: string }
@@ -109,7 +110,7 @@ function AppInner() {
       if (result.inputPath) setInputPathResult(result.inputPath)
       if (result.bottleneck) setBottleneckResult(result.bottleneck)
       if (result.gameLab) setGameLabResult(result.gameLab)
-      if (command === 'apply_safe_session_boost') { setSessionState('boosted'); playBoostActive(); toast('Boost active — 20 tweaks', 'success') }
+if (command === 'apply_safe_session_boost') { setSessionState('boosting'); /* wait for boost-complete event */ }
       if (command === 'rollback_session') { setSessionState('idle'); setBenchmarkResult(null); playRollback(); toast('Restored', 'info') }
       if (command === 'scan') { playScanComplete(); toast('Scan done', 'success') }
       if (command === 'benchmark') playBenchmarkComplete()
@@ -121,8 +122,11 @@ function AppInner() {
       playError()
       return false
     } finally {
-      if (mountedRef.current) setBusyCommand(null)
-      busyRef.current = false
+      // For background commands, boost-complete event handles cleanup
+      if (command !== 'apply_safe_session_boost' && command !== 'auto_boost_if_game') {
+        if (mountedRef.current) setBusyCommand(null)
+        busyRef.current = false
+      }
     }
   }, [activeGame, addLog, toast])
 
@@ -171,6 +175,30 @@ function AppInner() {
   useEffect(() => {
     if (!onboardingDone) setShowOnboarding(true)
   }, [onboardingDone])
+
+  // Listen for boost-complete from background thread
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    const isTauri = '__TAURI_INTERNALS__' in window
+    if (isTauri) {
+      import('@tauri-apps/api/event').then(({ listen }) => {
+        listen<{ success: boolean; message: string }>('boost-complete', (event) => {
+          if (event.payload.success) {
+            setSessionState('boosted')
+            playBoostActive()
+            toast('Boost active — 20 tweaks', 'success')
+          } else {
+            setSessionState('idle')
+            toast('Boost failed: ' + event.payload.message, 'error')
+            playError()
+          }
+          busyRef.current = false
+          if (mountedRef.current) setBusyCommand(null)
+        }).then(fn => { unlisten = fn })
+      }).catch(() => {})
+    }
+    return () => { unlisten?.() }
+  }, [toast])
 
   // Watch game process for auto-rollback (only when boosted)
   useEffect(() => {
@@ -223,6 +251,7 @@ function AppInner() {
 
   return (
     <div className="app-shell">
+      <BoostProgress active={busyCommand === 'apply_safe_session_boost' || busyCommand === 'auto_boost_if_game'} />
       <Sidebar t={t} language={language} />
       <main className="workspace">
         <TopBar t={t} language={language} activeGame={activeGame} onSelectGame={handleSelectGame} onToggleLanguage={handleToggleLanguage} onOptimize={handleOptimize} busyCommand={busyCommand} />
