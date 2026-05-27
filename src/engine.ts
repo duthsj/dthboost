@@ -21,6 +21,7 @@ export type EngineCommand =
   | 'check_admin'
   | 'thermal_check'
   | 'dpc_latency'
+  | 'auto_boost_if_game'
 
 export type EngineStatus =
   | 'idle'
@@ -71,6 +72,7 @@ export type BenchmarkResult = {
   avgFps: number
   onePercentLow: number
   pointOnePercentLow: number
+  pointZeroOnePercentLow: number
   p95FrameTime: number
   p99FrameTime: number
   stutterCount: number
@@ -282,6 +284,7 @@ export async function runEngineCommand(
         avgFps: game === 'Fortnite' ? 197 : game === 'CS2' ? 226 : 251,
         onePercentLow: game === 'Fortnite' ? 151 : game === 'CS2' ? 171 : 194,
         pointOnePercentLow: game === 'Fortnite' ? 119 : game === 'CS2' ? 137 : 162,
+        pointZeroOnePercentLow: game === 'Fortnite' ? 81 : game === 'CS2' ? 94 : 121,
         p95FrameTime: game === 'Fortnite' ? 11.1 : game === 'CS2' ? 9.5 : 8.7,
         p99FrameTime: game === 'Fortnite' ? 16.8 : game === 'CS2' ? 14.2 : 12.4,
         stutterCount: game === 'Fortnite' ? 7 : game === 'CS2' ? 4 : 3,

@@ -7,21 +7,17 @@ use std::process;
 const SINGLE_INSTANCE_PORT: u16 = 19827;
 
 fn main() {
-  // Reliable single-instance check via TCP bind
   match TcpListener::bind(("127.0.0.1", SINGLE_INSTANCE_PORT)) {
     Ok(listener) => {
-      // We hold this port for the lifetime of the app.
-      // The listener is intentionally never dropped.
       std::mem::forget(listener);
     }
     Err(_) => {
-      // Port is already bound — another instance is running.
-      // Try to bring the existing window to front.
+      // Another instance is running — bring its window to front
       let _ = std::process::Command::new("powershell")
         .args([
           "-NoProfile",
           "-Command",
-          "(Get-Process -Name dthboost -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1).MainWindowHandle",
+          "$c=@'\n[DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd);\n[DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);\n[DllImport(\"user32.dll\")] public static extern bool IsIconic(IntPtr hWnd);\n'@; Add-Type -MemberDefinition $c -Name Win -Namespace T; $p=Get-Process -Name dthboost -ErrorAction SilentlyContinue|Where-Object{$_.MainWindowHandle -ne 0}|Select-Object -First 1; if($p){[T.Win]::ShowWindow($p.MainWindowHandle,9);[T.Win]::SetForegroundWindow($p.MainWindowHandle)}",
         ])
         .output();
       process::exit(0);

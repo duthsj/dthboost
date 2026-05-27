@@ -100,6 +100,7 @@ struct BenchmarkResult {
   avg_fps: f64,
   one_percent_low: f64,
   point_one_percent_low: f64,
+  point_zero_one_percent_low: f64,
   p95_frame_time: f64,
   p99_frame_time: f64,
   stutter_count: u32,
@@ -215,6 +216,7 @@ fn run_engine_command(request: EngineRequest) -> Result<EngineResult, String> {
     "game_smoothness_lab" => Ok(game_smoothness_lab(&request.game)),
     "close_background_apps" => Ok(close_background_apps()),
     "watch_game" => Ok(watch_game(&request.game)),
+	    "auto_boost_if_game" => Ok(auto_boost_if_game(&request.game)),
     "install_presentmon" => Ok(install_presentmon()),
     "pre_warm_system" => Ok(pre_warm_system()),
     "check_gpu_driver" => Ok(check_gpu_driver()),
@@ -355,28 +357,26 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
   let game_path = game_path_str.clone();
 
   // Execute all tweaks in parallel across 4 threads
-  thread::scope(|s| {
-    // Thread A — Power plan + powercfg tweaks
-    s.spawn(|| {
+  // Each thread is wrapped in catch_unwind to prevent one panic from losing others
+  let _results = thread::scope(|s| {
+    let t1 = s.spawn(|| std::panic::catch_unwind(|| {
       let _ = cmd("powercfg").args(["-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
       let _ = cmd("powercfg").args(["/setactive", "e9a42b02-d5df-448d-aa00-03f14749eb61"]).output();
       let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "2a737441-1930-4402-8d77-b2bebba308a3", "48e6b7a6-50f5-4782-a5d4-53bb8f07e226", "0"]).output();
       let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "501a4d13-42af-4429-9fd1-a8218c268e20", "ee12f906-d277-404b-b6da-e5fa1a576df5", "0"]).output();
       let _ = cmd("powercfg").args(["/setacvalueindex", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", "54533251-82be-4824-96c1-47b60b740d00", "0cc5b647-c1df-4637-891a-dec35c318583", "100"]).output();
-    });
+    }));
 
-    // Thread B — Registry tweaks (HKCU + HKLM, no admin needed for HKCU)
-    s.spawn(|| {
+    let t2 = s.spawn(|| std::panic::catch_unwind(|| {
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences", "/v", &gpu_tgt, "/t", "REG_SZ", "/d", "GpuPreference=2;", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR", "/v", "HistoricalCaptureEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_Enabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\System\\GameConfigStore", "/v", "GameDVR_FSEBehaviorMode", "/t", "REG_DWORD", "/d", "2", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "ShowStartupPanel", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKCU\\Software\\Microsoft\\GameBar", "/v", "UseNexusForGameBarEnabled", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
-    });
+    }));
 
-    // Thread C — Network + MMCSS + GPU registry tweaks (HKLM, may need admin)
-    s.spawn(|| {
+    let t3 = s.spawn(|| std::panic::catch_unwind(|| {
       let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "/v", "SystemResponsiveness", "/t", "REG_DWORD", "/d", "0", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\MSMQ\\Parameters", "/v", "TCPNoDelay", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
       let _ = cmd("reg").args(["add", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games", "/v", "GPU Priority", "/t", "REG_DWORD", "/d", "8", "/f"]).output();
@@ -393,16 +393,17 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
         let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management", "/v", "FeatureSettingsOverrideMask", "/t", "REG_DWORD", "/d", "3", "/f"]).output();
       }
       let _ = cmd("reg").args(["add", "HKLM\\SYSTEM\\CurrentControlSet\\Enum\\PCI", "/v", "MSISupported", "/t", "REG_DWORD", "/d", "1", "/f"]).output();
-    });
+    }));
 
-    // Thread D — All PowerShell commands (GC, Defender, Timer, Network adapters, MMCSS)
-    s.spawn(move || {
+    let t4 = s.spawn(|| std::panic::catch_unwind(move || {
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "[GC]::Collect(); [GC]::WaitForPendingFinalizers()"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", &format!("Add-MpPreference -ExclusionPath '{}' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionProcess '{}' -ErrorAction SilentlyContinue", gp, proc)]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "Get-NetAdapter | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName 'Large Send Offload V2 (IPv4)' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "$c=@'\n[DllImport(\"ntdll.dll\")] public static extern int NtSetTimerResolution(int DesiredResolution, bool SetResolution, out int CurrentResolution);\n'@; Add-Type -MemberDefinition $c -Name W32 -Namespace T -ErrorAction SilentlyContinue; [T.W32]::NtSetTimerResolution(5000,$true,[ref]0)"]).output();
       let _ = cmd("powershell").args(["-NoProfile", "-Command", "$adapters = Get-NetAdapter | Where-Object { $_.Name -match 'Ethernet|Wi-Fi' }; foreach ($a in $adapters) { Set-NetAdapterAdvancedProperty -Name $a.Name -DisplayName 'Interrupt Moderation' -DisplayValue 'Disabled' -ErrorAction SilentlyContinue }"]).output();
-    });
+    }));
+
+    (t1.join(), t2.join(), t3.join(), t4.join())
   });
 
   Ok(EngineResult {
@@ -426,7 +427,7 @@ fn apply_safe_session_boost(game: &str) -> Result<EngineResult, String> {
       receipt("apply_safe_session_boost", "Timer resolution 0.5ms", "Measured", "System", "NtSetTimerResolution", "15.6ms", "0.5ms", "Reverts on exit", false, false),
       receipt("apply_safe_session_boost", "Force GPU max clocks", "Measured", "HKLM", "GPU PowerMizer", "Default", "Max perf", "Restore registry", true, false),
       receipt("apply_safe_session_boost", "Force AMD GPU max", "Measured", "HKLM", "GPU overdrive", "Default", "Enabled", "Restore registry", true, false),
-      receipt("apply_safe_session_boost", "Defender exclusion", "Measured", "System", "Add-MpPreference", "Scanned", &format!("Excluded: {}", &game_path_str[..game_path_str.len().min(40)]), "Remove-MpPreference", true, false),
+      receipt("apply_safe_session_boost", "Defender exclusion", "Measured", "System", "Add-MpPreference", "Scanned", &format!("Excluded: {}", game_path_str.chars().take(40).collect::<String>()), "Remove-MpPreference", true, false),
       receipt("apply_safe_session_boost", "Spectre/Meltdown OFF ⚡", "Advanced", "HKLM", "Memory Management", "Patched", "Unpatched (+CPU perf)", "Restore DWORD (reboot)", true, true),
       receipt("apply_safe_session_boost", "MSI Mode + Interrupt OFF", "Advanced", "HKLM+NetAdapter", "PCI+Network", "Default", "MSI + No moderation", "Restore registry + adapter", true, true),
     ],
@@ -552,6 +553,7 @@ fn benchmark(game: &str) -> EngineResult {
                   avg_fps: m.avg_fps,
                   one_percent_low: m.one_pct_low,
                   point_one_percent_low: m.point_one_pct_low,
+                  point_zero_one_percent_low: m.point_zero_one_pct_low,
                   p95_frame_time: m.p95,
                   p99_frame_time: m.p99,
                   stutter_count: m.stutter_count,
@@ -871,6 +873,7 @@ struct PresentMonMetrics {
   avg_fps: f64,
   one_pct_low: f64,
   point_one_pct_low: f64,
+  point_zero_one_pct_low: f64,
   p95: f64,
   p99: f64,
   stutter_count: u32,
@@ -977,13 +980,18 @@ fn parse_presentmon_csv(path: &Path) -> Result<PresentMonMetrics, String> {
   let avg_ms = ms_between_presents_sum / n as f64;
   let one_pct_idx = (n as f64 * 0.01).ceil() as usize;
   let point_one_idx = (n as f64 * 0.001).ceil().max(1.0) as usize;
+  let point_zero_one_idx = (n as f64 * 0.0001).ceil().max(1.0) as usize;
 
+  let last_idx = n.saturating_sub(1);
+  let p95_idx = ((n as f64 * 0.95) as usize).min(last_idx);
+  let p99_idx = ((n as f64 * 0.99) as usize).min(last_idx);
   Ok(PresentMonMetrics {
     avg_fps: if avg_ms > 0.0 { 1000.0 / avg_ms } else { 0.0 },
-    one_pct_low: 1000.0 / frame_times[n - one_pct_idx],
-    point_one_pct_low: 1000.0 / frame_times[n - point_one_idx],
-    p95: frame_times[(n as f64 * 0.95) as usize],
-    p99: frame_times[(n as f64 * 0.99) as usize],
+    one_pct_low: 1000.0 / frame_times.get(n - one_pct_idx).copied().unwrap_or(16.67),
+    point_one_pct_low: 1000.0 / frame_times.get(n - point_one_idx).copied().unwrap_or(16.67),
+    point_zero_one_pct_low: 1000.0 / frame_times.get(n - point_zero_one_idx).copied().unwrap_or(16.67),
+    p95: frame_times.get(p95_idx).copied().unwrap_or(16.67),
+    p99: frame_times.get(p99_idx).copied().unwrap_or(16.67),
     stutter_count: frame_times.iter().filter(|&&t| t > avg_ms * 2.5).count() as u32,
     dropped_frames: dropped,
     cpu_wait_label: if cpu_count > 0 && cpu_ms_sum / cpu_count as f64 > 3.0 { "Medium" } else { "Low" }.into(),
@@ -1003,6 +1011,7 @@ fn mock_benchmark_values(game: &str) -> BenchmarkResult {
     avg_fps: if game == "Fortnite" { 197.0 } else if game == "CS2" { 226.0 } else { 251.0 },
     one_percent_low: if game == "Fortnite" { 151.0 } else if game == "CS2" { 171.0 } else { 194.0 },
     point_one_percent_low: if game == "Fortnite" { 119.0 } else if game == "CS2" { 137.0 } else { 162.0 },
+    point_zero_one_percent_low: if game == "Fortnite" { 81.0 } else if game == "CS2" { 94.0 } else { 121.0 },
     p95_frame_time: if game == "Fortnite" { 11.1 } else if game == "CS2" { 9.5 } else { 8.7 },
     p99_frame_time: if game == "Fortnite" { 16.8 } else if game == "CS2" { 14.2 } else { 12.4 },
     stutter_count: if game == "Fortnite" { 7 } else if game == "CS2" { 4 } else { 3 },
@@ -1101,8 +1110,12 @@ fn close_background_apps() -> EngineResult {
 
 fn watch_game(game: &str) -> EngineResult {
   let (process, _) = game_process_and_path(game);
-  let tasks = command_output("tasklist", &["/fo", "csv", "/nh"]).unwrap_or_default();
-  let running = tasks.to_lowercase().contains(&process.to_lowercase());
+  // Fast WMI-based detection (sub-second) falls back to tasklist
+  let wmi_check = command_output("powershell", &[
+    "-NoProfile", "-Command",
+    &format!("(Get-CimInstance Win32_Process -Filter \"Name='{process}'\").Count")
+  ]).unwrap_or_default();
+  let running = wmi_check.trim().parse::<u32>().unwrap_or(0) > 0;
 
   EngineResult {
     status: if running { "boost-active" } else { "idle" }.into(),
@@ -1112,23 +1125,43 @@ fn watch_game(game: &str) -> EngineResult {
       format!("{process} is not running")
     },
     receipts: vec![],
-    scan: Some(ScanResult {
-      detected_games: game_processes().iter().map(|(g, p, path)| DetectedGame {
-        game: (*g).into(), process: (*p).into(), path: (*path).into(),
-        installed: Path::new(path).exists(),
-      }).collect(),
-      gpu_vendor: detect_gpu_vendor(),
-      refresh_rate: detect_refresh_rate(),
-      active_power_plan: active_power_plan(),
-      game_mode: query_reg_value("HKCU\\Software\\Microsoft\\GameBar", "AutoGameModeEnabled").unwrap_or_else(|| "Unknown".into()),
-      overlays: vec![],
-      cpu_model: "N/A".into(),
-      ram_info: "N/A".into(),
-      disk_info: "N/A".into(),
-      gpu_driver: "N/A".into(),
-    }),
+    scan: None,
     benchmark: None, network: None, memory: None,
     frametime: None, input_path: None, bottleneck: None, game_lab: None,
+  }
+}
+
+fn auto_boost_if_game(game: &str) -> EngineResult {
+  let (process, _) = game_process_and_path(game);
+  let wmi_check = command_output("powershell", &[
+    "-NoProfile", "-Command",
+    &format!("(Get-CimInstance Win32_Process -Filter \"Name='{process}'\").Count")
+  ]).unwrap_or_default();
+  let running = wmi_check.trim().parse::<u32>().unwrap_or(0) > 0;
+
+  if running {
+    match apply_safe_session_boost(game) {
+      Ok(mut result) => {
+        result.status = "boost-active".into();
+        result.message = format!("Auto-boost applied — {process} detected and optimized");
+        result
+      }
+      Err(_) => EngineResult {
+        status: "error".into(),
+        message: format!("Auto-boost failed for {process}"),
+        receipts: vec![],
+        scan: None, benchmark: None, network: None, memory: None,
+        frametime: None, input_path: None, bottleneck: None, game_lab: None,
+      },
+    }
+  } else {
+    EngineResult {
+      status: "boost-armed".into(),
+      message: format!("Waiting for {process}..."),
+      receipts: vec![],
+      scan: None, benchmark: None, network: None, memory: None,
+      frametime: None, input_path: None, bottleneck: None, game_lab: None,
+    }
   }
 }
 

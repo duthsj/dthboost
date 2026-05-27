@@ -6,11 +6,13 @@ interface SettingsPageProps {
   t: TFunction
   language: Language
   busyCommand: EngineCommand | null
+  autoBoost: boolean
   onToggleLanguage: () => void
+  onToggleAutoBoost: () => void
   onRunCommand: (cmd: EngineCommand) => void
 }
 
-export default function SettingsPage({ t: _t, language, busyCommand: _bc, onToggleLanguage, onRunCommand }: SettingsPageProps) {
+export default function SettingsPage({ t: _t, language, busyCommand: _bc, autoBoost, onToggleLanguage, onToggleAutoBoost, onRunCommand }: SettingsPageProps) {
   const [soundOn, setSoundOn] = useState(isSoundEnabled())
 
   const handleToggleSound = () => {
@@ -54,6 +56,14 @@ export default function SettingsPage({ t: _t, language, busyCommand: _bc, onTogg
             <small>{es ? 'DTHBoost se abre automáticamente al encender la PC' : 'DTHBoost launches automatically when you turn on your PC'}</small>
           </span>
           <i className={'switch'} />
+        </div>
+
+        <div className="toggle-row" onClick={onToggleAutoBoost} style={{ cursor: 'pointer' }}>
+          <span>
+            <strong>{es ? 'Auto-Boost al detectar juego' : 'Auto-Boost on game detection'}</strong>
+            <small>{es ? 'Optimiza automáticamente cuando abres tu juego. Sin hacer clic.' : 'Automatically optimize when you launch your game. No click needed.'}</small>
+          </span>
+          <i className={autoBoost ? 'switch on' : 'switch'} />
         </div>
       </div>
 

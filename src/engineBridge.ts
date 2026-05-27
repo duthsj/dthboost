@@ -15,12 +15,13 @@ export async function runEngineCommand(
     return runMockEngineCommand(command, game)
   }
 
-  try {
-    return await invoke<EngineResult>('run_engine_command', {
-      request: { command, game },
-    })
-  } catch (error) {
-    console.warn('DTHBoost helper unavailable, using mock engine', error)
-    return runMockEngineCommand(command, game)
+  const result = await invoke<EngineResult>('run_engine_command', {
+    request: { command, game },
+  })
+
+  if (!result || result.status === 'error') {
+    throw new Error(result?.message || `Command ${command} failed`)
   }
+
+  return result
 }

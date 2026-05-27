@@ -50,6 +50,8 @@ function AppInner() {
   const [sessionState, setSessionState] = useState('idle')
   const [busyCommand, setBusyCommand] = useState<EngineCommand | null>(null)
   const busyRef = useRef(false)
+  const mountedRef = useRef(true)
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false } }, [])
   const [plan, setPlan] = useState<PlanItem[]>(() => {
     try {
       const saved = localStorage.getItem(`dthboost:plan-${storedGame}`)
@@ -69,6 +71,7 @@ function AppInner() {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
   const [onboardingDone, setOnboardingDone] = usePersist('onboardingDone', false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [autoBoost, setAutoBoost] = usePersist('autoBoost', false)
 
   const { toast } = useToast()
   const t = useDictionary(language)
@@ -84,14 +87,14 @@ function AppInner() {
     _setLog((prev: LogEntry[]) => [entry, ...prev].slice(0, 50))
   }, [])
 
-  const runCommand = useCallback(async (command: EngineCommand) => {
-    if (busyRef.current) return
+  const runCommand = useCallback(async (command: EngineCommand): Promise<boolean> => {
+    if (busyRef.current) return false
     busyRef.current = true
-    setBusyCommand(command)
+    if (mountedRef.current) setBusyCommand(command)
     addLog('Running ' + command + '...')
     try {
       const result = await runEngineCommand(command, activeGame)
-      if (!result) return
+      if (!result || !mountedRef.current) return false
       if (result.receipts && result.receipts.length > 0) {
         setReceipts((prev) => [...result.receipts, ...prev].slice(0, 40))
       }
@@ -111,12 +114,14 @@ function AppInner() {
       if (command === 'scan') { playScanComplete(); toast('Scan done', 'success') }
       if (command === 'benchmark') playBenchmarkComplete()
       addLog('Completed ' + command)
+      return true
     } catch (err) {
       addLog('Failed ' + command)
-      toast('Failed: ' + command, 'error')
+      if (mountedRef.current) { toast('Failed: ' + command, 'error') }
       playError()
+      return false
     } finally {
-      setBusyCommand(null)
+      if (mountedRef.current) setBusyCommand(null)
       busyRef.current = false
     }
   }, [activeGame, addLog, toast])
@@ -148,39 +153,44 @@ function AppInner() {
 
   const handleOptimize = useCallback(async () => {
     if (busyRef.current) return
-    try {
-      await runCommand('scan')
-      await new Promise(r => setTimeout(r, 600))
-      await runCommand('benchmark')
-      await new Promise(r => setTimeout(r, 600))
-      await runCommand('apply_safe_session_boost')
-    } catch { toast('Optimization interrupted', 'error') }
+    if (!(await runCommand('scan'))) { toast('Scan failed — aborting optimization', 'error'); return }
+    await new Promise(r => setTimeout(r, 400))
+    if (!(await runCommand('benchmark'))) { toast('Benchmark failed — aborting optimization', 'error'); return }
+    await new Promise(r => setTimeout(r, 400))
+    await runCommand('apply_safe_session_boost')
   }, [runCommand, toast])
 
   const handleToggleLanguage = useCallback(() => setLanguage(language === 'en' ? 'es' : 'en'), [language, setLanguage])
 
   const rollbackRef = useRef(runCommand)
   rollbackRef.current = runCommand
+  const optimizeRef = useRef(handleOptimize)
+  optimizeRef.current = handleOptimize
   const gameWasRunning = useRef(false)
 
   useEffect(() => {
     if (!onboardingDone) setShowOnboarding(true)
   }, [onboardingDone])
 
+  // Watch game process + auto-boost / auto-rollback (2s polling with WMI)
   useEffect(() => {
-    if (sessionState !== 'boosted') return
+    if (sessionState !== 'boosted' && sessionState !== 'idle') return
     gameWasRunning.current = false
     const interval = setInterval(() => {
+      if (busyRef.current) return
       runEngineCommand('watch_game', activeGame).then(result => {
         if (result.status === 'boost-active') {
           gameWasRunning.current = true
-        } else if (gameWasRunning.current) {
+          if (autoBoost && sessionState === 'idle' && !busyRef.current) {
+            optimizeRef.current()
+          }
+        } else if (gameWasRunning.current && !busyRef.current) {
           rollbackRef.current('rollback_session')
         }
       }).catch(() => {})
-    }, 5000)
+    }, 2000)
     return () => clearInterval(interval)
-  }, [sessionState, activeGame])
+  }, [sessionState, activeGame, autoBoost])
 
   const handleFinishOnboarding = useCallback(() => {
     setOnboardingDone(true)
@@ -220,7 +230,7 @@ function AppInner() {
           <Route path="/" element={<DashboardPage t={t} language={language} activeGame={activeGame} readiness={readiness} sessionState={sessionState} receiptsCount={receipts.length} scanResult={scanResult} benchmarkResult={benchmarkResult} onOptimize={handleOptimize} busyCommand={busyCommand} />} />
           <Route path="/optimize" element={<OptimizePage t={t} language={language} activeGame={activeGame} plan={plan} receipts={receipts} busyCommand={busyCommand} benchmarkResult={benchmarkResult} scanResult={scanResult} onTogglePlan={handleTogglePlan} onRunCommand={runCommand} onOptimize={handleOptimize} onSelectReceipt={setSelectedReceipt} />} />
           <Route path="/history" element={<BenchmarkPage t={t} language={language} activeGame={activeGame} benchmarkResult={benchmarkResult} busyCommand={busyCommand} onRunCommand={runCommand} scanResult={scanResult} />} />
-          <Route path="/settings" element={<SettingsPage t={t} language={language} busyCommand={busyCommand} onToggleLanguage={handleToggleLanguage} onRunCommand={runCommand} />} />
+          <Route path="/settings" element={<SettingsPage t={t} language={language} busyCommand={busyCommand} autoBoost={autoBoost} onToggleLanguage={handleToggleLanguage} onToggleAutoBoost={() => setAutoBoost(!autoBoost)} onRunCommand={runCommand} />} />
           <Route path="/games" element={<GamesPage t={t} language={language} activeGame={activeGame} />} />
           <Route path="/network" element={<NetworkPage t={t} language={language} networkResult={networkResult} memoryResult={memoryResult} />} />
           <Route path="/safety" element={<SafetyPage t={t} language={language} />} />
