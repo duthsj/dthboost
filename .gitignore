@@ -3,3 +3,6 @@ dist
 target
 .DS_Store
 *.log
+bountyforge/
+*.bak
+*.backup*

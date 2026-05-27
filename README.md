@@ -3,8 +3,8 @@
 **Benchmark. Boost. Restore.** Session-only Windows optimization for Valorant, CS2, and Fortnite.
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)](https://github.com/dthboost/dthboost/releases)
-[![Version](https://img.shields.io/badge/version-0.8.0-brightgreen)](https://github.com/dthboost/dthboost/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)](https://github.com/duthsj/dthboost/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)](https://github.com/duthsj/dthboost/releases)
 
 ## Why DTHBoost?
 
@@ -33,7 +33,7 @@ Most gaming optimizers are black boxes — they apply permanent tweaks you can't
 
 ## Download
 
-**[Download latest release](https://github.com/dthboost/dthboost/releases/latest)**
+**[Download latest release](https://github.com/duthsj/dthboost/releases/latest)**
 
 Windows 10/11 · ~7 MB · No admin required for most features
 
