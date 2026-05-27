@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DTHBoost — Security & Safety</title>
+<meta name="description" content="DTHBoost security guarantees: no DLL injection, no memory access, no kernel drivers. Open source, verifiable, VirusTotal clean."/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#050704;color:#e6e7e3;font-family:'Inter',system-ui,sans-serif;padding:24px;max-width:860px;margin:0 auto;line-height:1.6}
+h1{font-size:2.2rem;font-weight:900;letter-spacing:-.03em;margin:40px 0 8px}
+h1 span{background:linear-gradient(135deg,#78d08f,#68c6bd);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h2{font-size:1.3rem;font-weight:700;margin:32px 0 10px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05)}
+.card{background:#0a0d09;border:1px solid rgba(255,255,255,.04);border-radius:14px;padding:24px;margin:18px 0}
+.allowed{color:#78d08f;font-weight:700}.blocked{color:#fa4454;font-weight:700}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;font-size:12px;font-weight:700}
+.badge-ok{background:rgba(120,208,143,.12);color:#78d08f}
+.badge-block{background:rgba(250,68,84,.12);color:#fa4454}
+.hash{font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(255,255,255,.03);padding:10px 16px;border-radius:8px;word-break:break-all;color:#4c4f4a;display:block;margin-top:6px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#78d08f;color:#050704;font-weight:700;font-size:14px;border-radius:100px;text-decoration:none;transition:all .2s}
+.btn:hover{background:#8adc9e}
+nav a{color:#767973;font-size:12px;font-weight:600;text-decoration:none;text-transform:uppercase;letter-spacing:.05em}
+nav a:hover{color:#e6e7e3}
+</style>
+</head>
+<body>
+
+<nav style="display:flex;gap:28px;padding:12px 0;margin-bottom:20px">
+  <a href="index.html">← Back</a>
+  <a href="index.html#how">How</a>
+  <a href="validate.html">Validate</a>
+</nav>
+
+<h1>Security <span>& Safety</span></h1>
+<p style="color:#767973;max-width:600px">DTHBoost is open source. Every line of code is public. Here is exactly what it does — and does not do.</p>
+
+<div class="card">
+  <h2 style="margin-top:0;border:none;padding:0">✓ What DTHBoost Does</h2>
+  <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:14px">
+    <li><span class="allowed">✓</span> Change Windows power plans via <code>powercfg</code> (Microsoft documented API)</li>
+    <li><span class="allowed">✓</span> Toggle registry values under <code>HKCU\Software\Microsoft\GameBar</code> and <code>GameDVR</code></li>
+    <li><span class="allowed">✓</span> Set GPU preferences via <code>HKCU\Software\Microsoft\DirectX\UserGpuPreferences</code></li>
+    <li><span class="allowed">✓</span> Run Intel PresentMon to capture frame timing data (read-only)</li>
+    <li><span class="allowed">✓</span> Detect running processes via <code>tasklist</code> (standard Windows tool)</li>
+    <li><span class="allowed">✓</span> Detect hardware via WMI queries (<code>Win32_Processor</code>, <code>Win32_VideoController</code>)</li>
+    <li><span class="allowed">✓</span> Create a rollback snapshot before every change</li>
+    <li><span class="allowed">✓</span> Auto-restore all settings when you close the game</li>
+  </ul>
+</div>
+
+<div class="card" style="border-color:rgba(250,68,84,.15)">
+  <h2 style="margin-top:0;border:none;padding:0">✗ What DTHBoost NEVER Does</h2>
+  <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:14px">
+    <li><span class="blocked">✗</span> DLL injection into any process — <strong>blocked by design</strong></li>
+    <li><span class="blocked">✗</span> Read or write game memory — <strong>would trigger anti-cheat</strong></li>
+    <li><span class="blocked">✗</span> Modify or suspend anti-cheat services (Vanguard, Easy Anti-Cheat, BattlEye)</li>
+    <li><span class="blocked">✗</span> Install kernel drivers — <strong>not needed, not included</strong></li>
+    <li><span class="blocked">✗</span> Macros, recoil control, or input automation</li>
+    <li><span class="blocked">✗</span> Disable Windows Defender entirely (only adds game folder exclusion)</li>
+    <li><span class="blocked">✗</span> Modify BCDEdit, HPET, or boot configuration</li>
+    <li><span class="blocked">✗</span> Network traffic interception or packet manipulation</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;border:none;padding:0">File Integrity — SHA256</h2>
+  <p style="color:#767973;font-size:13px">Verify your download matches the official build. Run this in PowerShell after downloading:</p>
+  <code style="display:block;margin:12px 0;color:#78d08f;font-size:12px;font-family:'JetBrains Mono',monospace">Get-FileHash DTHBoost_1.0.0_x64-setup.exe -Algorithm SHA256</code>
+  <p style="color:#767973;font-size:11px;margin-bottom:8px">Expected hash:</p>
+  <span class="hash">05e1cde2d791f34735fc538f31ab9ff8b5d687d07e51015f077304225b495c1b</span>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;border:none;padding:0">VirusTotal</h2>
+  <p style="color:#767973;font-size:13px;margin-bottom:12px">Upload the .exe to VirusTotal for an independent 70+ engine scan:</p>
+  <a href="https://www.virustotal.com/gui/home/upload" target="_blank" rel="noopener" class="btn">Open VirusTotal →</a>
+  <p style="color:#4c4f4a;font-size:10px;margin-top:10px">The installer is unsigned (code signing costs ~$300/year). Windows SmartScreen may show a warning on first run — click "More info" → "Run anyway".</p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;border:none;padding:0">Open Source — MIT License</h2>
+  <p style="color:#767973;font-size:13px">Every line of DTHBoost is public on GitHub. You can audit:</p>
+  <ul style="color:#767973;font-size:13px;margin:10px 0 0 18px;display:flex;flex-direction:column;gap:4px">
+    <li>Rust backend — <code>src-tauri/src/lib.rs</code> (1,688 lines)</li>
+    <li>React frontend — <code>src/</code> (10 pages, 21 components)</li>
+    <li>All system commands — powercfg, reg, WMI, tasklist (no hidden tools)</li>
+  </ul>
+  <a href="https://github.com/duthsj/dthboost" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;margin-top:14px;color:#78d08f;text-decoration:none;font-weight:600;font-size:13px">View source on GitHub →</a>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;border:none;padding:0">Anti-Cheat Compatibility</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:12px">
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:10px 0;font-weight:700">Riot Vanguard (Valorant)</td>
+      <td style="padding:10px 0"><span class="badge badge-ok">Safe</span></td>
+      <td style="padding:10px 0;color:#767973;font-size:12px">No memory access, no hooks. Power/registry changes only.</td>
+    </tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:10px 0;font-weight:700">VAC (CS2)</td>
+      <td style="padding:10px 0"><span class="badge badge-ok">Safe</span></td>
+      <td style="padding:10px 0;color:#767973;font-size:12px">Nothing injected. Steam overlay is untouched.</td>
+    </tr>
+    <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:10px 0;font-weight:700">EAC / BattlEye (Fortnite)</td>
+      <td style="padding:10px 0"><span class="badge badge-ok">Safe</span></td>
+      <td style="padding:10px 0;color:#767973;font-size:12px">No kernel interference. No process manipulation.</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 0;font-weight:700">FaceIt / ESEA</td>
+      <td style="padding:10px 0"><span class="badge badge-ok">Safe</span></td>
+      <td style="padding:10px 0;color:#767973;font-size:12px">Registry/powercfg changes are standard Windows operations.</td>
+    </tr>
+  </table>
+</div>
+
+<div style="text-align:center;padding:48px 20px">
+  <a href="index.html" class="btn">← Back to DTHBoost</a>
+</div>
+
+</body>
+</html>
